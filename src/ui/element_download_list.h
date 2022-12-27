@@ -76,6 +76,7 @@ public:
   void                receive_cycle_throttle();
 
   void                receive_change_view(const std::string& name);
+  void                receive_change_view_index(uint8_t index);
 
   void                toggle_layout();
 

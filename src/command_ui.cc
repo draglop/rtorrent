@@ -112,8 +112,8 @@ apply_view_list() {
   torrent::Object rawResult = torrent::Object::create_list();
   torrent::Object::list_type& result = rawResult.as_list();
 
-  for (core::ViewManager::const_iterator itr = control->view_manager()->begin(), last = control->view_manager()->end(); itr != last; itr++)
-    result.push_back((*itr)->name());
+  control->view_manager()->for_each([&result](core::View *view)
+                                    { result.push_back(view->name()); });
 
   return rawResult;
 }
@@ -123,9 +123,9 @@ apply_view_set(const torrent::Object::list_type& args) {
   if (args.size() != 2)
     throw torrent::input_error("Wrong argument count.");
 
-  core::ViewManager::iterator itr = control->view_manager()->find(args.back().as_string());
+  core::View *view = control->view_manager()->find(args.back().as_string());
 
-  if (itr == control->view_manager()->end())
+  if (view == nullptr)
     throw torrent::input_error("Could not find view \"" + args.back().as_string() + "\".");
 
 //   if (args.front().as_string() == "main")
@@ -573,17 +573,17 @@ apply_if(rpc::target_type target, const torrent::Object& rawArgs, int flags) {
 
 torrent::Object
 cmd_view_size(const torrent::Object::string_type& args) {
-  return (*control->view_manager()->find_throw(args))->size_visible();
+  return control->view_manager()->find_throw(args)->size_visible();
 }
 
 torrent::Object
 cmd_view_size_not_visible(const torrent::Object::string_type& args) {
-  return (*control->view_manager()->find_throw(args))->size_not_visible();
+  return control->view_manager()->find_throw(args)->size_not_visible();
 }
 
 torrent::Object
 cmd_view_persistent(const torrent::Object::string_type& args) {
-  core::View* view = *control->view_manager()->find_throw(args);
+  core::View* view = control->view_manager()->find_throw(args);
   
   if (!view->get_filter().is_empty() || !view->event_added().is_empty() || !view->event_removed().is_empty())
     throw torrent::input_error("Cannot set modified views as persitent.");
@@ -616,21 +616,21 @@ cmd_ui_unfocus_download(core::Download* download) {
 
 torrent::Object
 cmd_view_filter_download(core::Download* download, const torrent::Object::string_type& args) {
-  (*control->view_manager()->find_throw(args))->filter_download(download);
+  control->view_manager()->find_throw(args)->filter_download(download);
 
   return torrent::Object();
 }
 
 torrent::Object
 cmd_view_set_visible(core::Download* download, const torrent::Object::string_type& args) {
-  (*control->view_manager()->find_throw(args))->set_visible(download);
+  control->view_manager()->find_throw(args)->set_visible(download);
 
   return torrent::Object();
 }
 
 torrent::Object
 cmd_view_set_not_visible(core::Download* download, const torrent::Object::string_type& args) {
-  (*control->view_manager()->find_throw(args))->set_not_visible(download);
+  control->view_manager()->find_throw(args)->set_not_visible(download);
 
   return torrent::Object();
 }
@@ -802,6 +802,7 @@ initialize_command_ui() {
   CMD2_VAR_STRING("keys.layout", "qwerty");
 
   CMD2_ANY_STRING("view.add", object_convert_void(std::bind(&core::ViewManager::insert_throw, control->view_manager(), std::placeholders::_2)));
+  CMD2_ANY_STRING("view.remove", object_convert_void(std::bind(&core::ViewManager::remove_throw, control->view_manager(), std::placeholders::_2)));
 
   CMD2_ANY_L   ("view.list",          std::bind(&apply_view_list));
   CMD2_ANY_LIST("view.set",           std::bind(&apply_view_set, std::placeholders::_2));

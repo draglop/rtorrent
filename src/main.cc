@@ -322,9 +322,6 @@ main(int argc, char** argv) {
        "view.sort_new     = name,((less,((d.name))))\n"
        "view.sort_current = name,((less,((d.name))))\n"
 
-       "view.add = active\n"
-       "view.filter = active,((false))\n"
-
        "view.add = started\n"
        "view.filter = started,((d.state))\n"
        "view.filter_on = started,event.download.stopped,event.download.started\n"

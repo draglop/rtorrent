@@ -55,89 +55,113 @@ namespace core {
 
 void
 ViewManager::clear() {
-  std::for_each(begin(), end(), rak::call_delete<View>());
-
-  base_type::clear();
+  std::for_each(m_views.begin(), m_views.end(), [](View* view){delete view;});
+  m_views.clear();
 }
 
-ViewManager::iterator
+void
 ViewManager::insert(const std::string& name) {
   if (name.empty())
     throw torrent::input_error("View with empty name not supported.");
 
-  if (find(name) != end())
+  if (find(name) != nullptr)
     throw torrent::input_error("View with same name already inserted.");
 
-  View* view = new View();
+  View *view = new View;
   view->initialize(name);
-
-  return base_type::insert(end(), view);
+  m_views.push_back(view);
 }
 
-ViewManager::iterator
+View*
 ViewManager::find(const std::string& name) {
-  return std::find_if(begin(), end(), rak::equal(name, std::mem_fn(&View::name)));
+  auto it = std::find_if(m_views.begin(), m_views.end(), [&name](View* view){return name == view->name();});
+  return it != m_views.end() ? *it : nullptr;
 }
 
-ViewManager::iterator
-ViewManager::find_throw(const std::string& name) {
-  iterator itr = std::find_if(begin(), end(), rak::equal(name, std::mem_fn(&View::name)));
+View *
+ViewManager::find_by_index(uint8_t index)
+{
+  if (m_views.empty() || index > m_views.size() - 1) {
+    return nullptr;
+  }
+  auto it = m_views.begin();
+  while (index--)
+    ++it;
 
-  if (itr == end())
+  return *it;
+}
+
+View*
+ViewManager::find_throw(const std::string& name) {
+  View* view = find(name);
+
+  if (view == nullptr)
     throw torrent::input_error("Could not find view: " + name);
 
-  return itr;
+  return view;
+}
+
+void
+ViewManager::remove_throw(const std::string& name) {
+  if (name.empty())
+    throw torrent::input_error("View with empty name not supported.");
+
+  auto it = std::find_if(m_views.begin(), m_views.end(), [&name](View* view){return name == view->name();});
+  if (it == m_views.end())
+    throw torrent::input_error("Could not find view: " + name);
+
+  delete (*it);
+  m_views.erase(it);
 }
 
 void
 ViewManager::sort(const std::string& name, uint32_t timeout) {
-  iterator viewItr = find_throw(name);
+  View* view = find_throw(name);
 
-  if ((*viewItr)->last_changed() + rak::timer::from_seconds(timeout) > cachedTime)
+  if (view->last_changed() + rak::timer::from_seconds(timeout) > cachedTime)
     return;
 
   // Should we rename sort, or add a seperate function?
-  (*viewItr)->filter();
-  (*viewItr)->sort();
+  view->filter();
+  view->sort();
 }
 
 void
 ViewManager::set_filter(const std::string& name, const torrent::Object& cmd) {
-  iterator viewItr = find_throw(name);
+  View* view = find_throw(name);
 
-  (*viewItr)->set_filter(cmd);
-  (*viewItr)->filter();
+  view->set_filter(cmd);
+  view->filter();
 }
 
 void
 ViewManager::set_filter_temp(const std::string& name, const torrent::Object& cmd) {
-  iterator viewItr = find_throw(name);
+  View* view = find_throw(name);
 
-  (*viewItr)->set_filter_temp(cmd);
-  (*viewItr)->filter();
+  view->set_filter_temp(cmd);
+  view->filter();
 }
 
 void
 ViewManager::set_filter_on(const std::string& name, const filter_args& args) {
-  iterator viewItr = find_throw(name);
+  View* view = find_throw(name);
 
-  (*viewItr)->clear_filter_on();
+  view->clear_filter_on();
 
   // TODO: Ensure the filter keys are rlookup.
-
-  for (filter_args::const_iterator itr = args.begin(); itr != args.end(); ++itr)
-    (*viewItr)->set_filter_on_event(*itr);
+  std::for_each(args.begin(), args.end(), [&view](const std::string &arg)
+                { view->set_filter_on_event(arg); });
 }
 
 void
 ViewManager::updates_enable(bool enable) {
   if (enable) {
-    for(View* view : *this) {
+    for(View* view : m_views) {
       view->reset_focus();
       view->updates_enable(true);
     }
   } else {
-    for(View* view : *this) {
+    for(View* view : m_views) {
       view->updates_enable(false);
     }
   }

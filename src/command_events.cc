@@ -61,6 +61,25 @@
 
 #include "thread_worker.h"
 
+namespace {
+  void
+  get_downloads(const torrent::Object::list_type& args, std::vector<core::Download *>& downloads) {
+    if (!args.front().as_string().empty()) {
+      core::ViewManager *viewManager = control->view_manager();
+      core::View *view = viewManager->find(args.front().as_string());
+
+      if (view == nullptr)
+        throw torrent::input_error("Could not find view.");
+
+      std::copy(view->begin_visible(), view->end_visible(), std::back_inserter(downloads));
+    } else {
+      core::DownloadList* dlist = control->core()->download_list();
+
+      std::copy(dlist->begin(), dlist->end(), std::back_inserter(downloads));
+    }
+  }
+}
+
 torrent::Object
 apply_on_ratio(const torrent::Object& rawArgs) {
   const std::string& groupName = rawArgs.as_string();
@@ -68,9 +87,9 @@ apply_on_ratio(const torrent::Object& rawArgs) {
   char buffer[32 + groupName.size()];
   sprintf(buffer, "group2.%s.view", groupName.c_str());
 
-  core::ViewManager::iterator viewItr = control->view_manager()->find(rpc::commands.call(buffer, rpc::make_target()).as_string());
+  core::View* view = control->view_manager()->find(rpc::commands.call(buffer, rpc::make_target()).as_string());
 
-  if (viewItr == control->view_manager()->end())
+  if (view == nullptr)
     throw torrent::input_error("Could not find view.");
 
   char* bufferStart = buffer + sprintf(buffer, "group2.%s.ratio.", groupName.c_str());
@@ -87,7 +106,7 @@ apply_on_ratio(const torrent::Object& rawArgs) {
 
   std::vector<core::Download*> downloads;
 
-  for  (core::View::iterator itr = (*viewItr)->begin_visible(), last = (*viewItr)->end_visible(); itr != last; itr++) {
+  for  (core::View::iterator itr = view->begin_visible(), last = view->end_visible(); itr != last; itr++) {
     if (!(*itr)->is_seeding() || rpc::call_command_value("d.ignore_commands", rpc::make_target(*itr)) != 0)
       continue;
 
@@ -247,20 +266,20 @@ apply_download_list(const torrent::Object::list_type& args) {
   torrent::Object::list_const_iterator argsItr = args.begin();
 
   core::ViewManager* viewManager = control->view_manager();
-  core::ViewManager::iterator viewItr;
+  core::View* view = nullptr;
 
   if (argsItr != args.end() && !argsItr->as_string().empty())
-    viewItr = viewManager->find((argsItr++)->as_string());
+    view = viewManager->find((argsItr++)->as_string());
   else
-    viewItr = viewManager->find("default");
+    view = viewManager->find("default");
 
-  if (viewItr == viewManager->end())
+  if (view == nullptr)
     throw torrent::input_error("Could not find view.");
 
   torrent::Object result = torrent::Object::create_list();
   torrent::Object::list_type& resultList = result.as_list();
 
-  for (core::View::const_iterator itr = (*viewItr)->begin_visible(), last = (*viewItr)->end_visible(); itr != last; itr++) {
+  for (core::View::const_iterator itr = view->begin_visible(), last = view->end_visible(); itr != last; itr++) {
     const torrent::HashString* hashString = &(*itr)->info()->hash();
 
     resultList.push_back(rak::transform_hex(hashString->begin(), hashString->end()));
@@ -274,33 +293,18 @@ d_multicall(const torrent::Object::list_type& args) {
   if (args.empty())
     throw torrent::input_error("Too few arguments.");
 
-  core::ViewManager* viewManager = control->view_manager();
-  core::ViewManager::iterator viewItr;
-
-  if (!args.front().as_string().empty())
-    viewItr = viewManager->find(args.front().as_string());
-  else
-    viewItr = viewManager->find("default");
-
-  if (viewItr == viewManager->end())
-    throw torrent::input_error("Could not find view.");
-
-  // Add some pre-parsing of the commands, so we don't spend time
-  // parsing and searching command map for every single call.
-  unsigned int dlist_size = (*viewItr)->size_visible();
-  core::Download* dlist[dlist_size];
-
-  std::copy((*viewItr)->begin_visible(), (*viewItr)->end_visible(), dlist);
+  std::vector<core::Download*> downloads;
+  get_downloads(args, downloads);
 
   torrent::Object             resultRaw = torrent::Object::create_list();
   torrent::Object::list_type& result = resultRaw.as_list();
 
-  for (core::Download** vItr = dlist; vItr != dlist + dlist_size; vItr++) {
+  for (auto it = downloads.begin(), it_end = downloads.end(); it != it_end; ++it) {
     torrent::Object::list_type& row = result.insert(result.end(), torrent::Object::create_list())->as_list();
 
     for (torrent::Object::list_const_iterator cItr = ++args.begin(); cItr != args.end(); cItr++) {
       const std::string& cmd = cItr->as_string();
-      row.push_back(rpc::parse_command(rpc::make_target(*vItr), cmd.c_str(), cmd.c_str() + cmd.size()).first);
+      row.push_back(rpc::parse_command(rpc::make_target(*it), cmd.c_str(), cmd.c_str() + cmd.size()).first);
     }
   }
 
@@ -315,14 +319,14 @@ d_multicall_filtered(const torrent::Object::list_type& args) {
 
   // Find the given view
   core::ViewManager* viewManager = control->view_manager();
-  core::ViewManager::iterator viewItr = viewManager->find(arg->as_string().empty() ? "default" : arg->as_string());
+  core::View* view = viewManager->find(arg->as_string().empty() ? "default" : arg->as_string());
 
-  if (viewItr == viewManager->end())
+  if (view == nullptr)
     throw torrent::input_error("Could not find view '" + arg->as_string() + "'.");
 
   // Make a filtered copy of the current item list
   core::View::base_type dlist;
-  (*viewItr)->filter_by(*++arg, dlist);
+  view->filter_by(*++arg, dlist);
 
   // Generate result by iterating over all items
   torrent::Object             resultRaw = torrent::Object::create_list();

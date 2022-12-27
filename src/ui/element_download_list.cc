@@ -58,10 +58,10 @@ ElementDownloadList::ElementDownloadList() :
   m_window(NULL),
   m_view(NULL) {
 
-  receive_change_view("main");
+  receive_change_view_index(0);
 
   if (m_view == NULL)
-    throw torrent::internal_error("View \"main\" must be present to initialize the main display.");
+    throw torrent::internal_error("a view must be defined to initialize the main display.");
 
   m_bindings['\x13'] = std::bind(&ElementDownloadList::receive_command, this, "d.start=");
   m_bindings['\x04'] = std::bind(&ElementDownloadList::receive_command, this, "branch=d.state=,d.stop=,d.erase=");
@@ -86,16 +86,16 @@ ElementDownloadList::ElementDownloadList() :
                                       "d.delete_tied=; print=\"Cleared tied to file association for the selected download.\"");
 
   // These should also be commands.
-  m_bindings['1']           = std::bind(&ElementDownloadList::receive_change_view, this, "main");
-  m_bindings['2']           = std::bind(&ElementDownloadList::receive_change_view, this, "name");
-  m_bindings['3']           = std::bind(&ElementDownloadList::receive_change_view, this, "started");
-  m_bindings['4']           = std::bind(&ElementDownloadList::receive_change_view, this, "stopped");
-  m_bindings['5']           = std::bind(&ElementDownloadList::receive_change_view, this, "complete");
-  m_bindings['6']           = std::bind(&ElementDownloadList::receive_change_view, this, "incomplete");
-  m_bindings['7']           = std::bind(&ElementDownloadList::receive_change_view, this, "hashing");
-  m_bindings['8']           = std::bind(&ElementDownloadList::receive_change_view, this, "seeding");
-  m_bindings['9']           = std::bind(&ElementDownloadList::receive_change_view, this, "leeching");
-  m_bindings['0']           = std::bind(&ElementDownloadList::receive_change_view, this, "active");
+  m_bindings['1']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 0);
+  m_bindings['2']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 1);
+  m_bindings['3']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 2);
+  m_bindings['4']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 3);
+  m_bindings['5']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 4);
+  m_bindings['6']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 5);
+  m_bindings['7']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 6);
+  m_bindings['8']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 7);
+  m_bindings['9']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 8);
+  m_bindings['0']           = std::bind(&ElementDownloadList::receive_change_view_index, this, 9);
 
   m_bindings[KEY_UP]   = m_bindings['P' - '@'] = std::bind(&ElementDownloadList::receive_prev, this);
   m_bindings[KEY_DOWN] = m_bindings['N' - '@'] = std::bind(&ElementDownloadList::receive_next, this);
@@ -213,9 +213,9 @@ ElementDownloadList::receive_cycle_throttle() {
 
 void
 ElementDownloadList::receive_change_view(const std::string& name) {
-  core::ViewManager::iterator itr = control->view_manager()->find(name);
+  core::View* new_view = control->view_manager()->find(name);
 
-  if (itr == control->view_manager()->end()) {
+  if (new_view == nullptr) {
     control->core()->push_log_std("Could not find view \"" + name + "\".");
     return;
   }
@@ -224,7 +224,26 @@ ElementDownloadList::receive_change_view(const std::string& name) {
   if (!old_name.empty())
     rpc::commands.call_catch("event.view.hide", rpc::make_target(), name,
                              "View hide event action failed: ");
-  set_view(*itr);
+  set_view(new_view);
+  if (!old_name.empty())
+    rpc::commands.call_catch("event.view.show", rpc::make_target(), old_name,
+                             "View show event action failed: ");
+}
+
+void ElementDownloadList::receive_change_view_index(uint8_t index)
+{
+  core::View *new_view = control->view_manager()->find_by_index(index);
+
+  if (new_view == nullptr) {
+    control->core()->push_log_std("Could not find view.");
+    return;
+  }
+
+  std::string old_name = view() ? view()->name() : std::string();
+  if (!old_name.empty())
+    rpc::commands.call_catch("event.view.hide", rpc::make_target(), new_view->name(),
+                             "View hide event action failed: ");
+  set_view(new_view);
   if (!old_name.empty())
     rpc::commands.call_catch("event.view.show", rpc::make_target(), old_name,
                              "View show event action failed: ");

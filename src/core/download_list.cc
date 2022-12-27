@@ -97,9 +97,8 @@ DownloadList::actives_add(Download* download) {
   m_actives.push_back(download);
   // DEBUG_VIEW
   {
-    auto it = control->view_manager()->find("active");
-    if (it != control->view_manager()->end()) {
-      View* view = *it;
+    View* view = control->view_manager()->find("active");
+    if (view) {
       //view->filter();
       const std::size_t views_count = view->size_visible();
       const std::size_t list_count = m_actives.size();
@@ -120,9 +119,8 @@ DownloadList::actives_remove(Download* download) {
   m_actives.erase(it); // TODO keep order or remove at end?
   // DEBUG_VIEW
   {
-    auto it = control->view_manager()->find("active");
-    if (it != control->view_manager()->end()) {
-      View* view = *it;
+    View* view = control->view_manager()->find("active");
+    if (view) {
       //view->filter();
       const std::size_t views_count = view->size_visible();
       const std::size_t list_count = m_actives.size();
@@ -148,10 +146,9 @@ DownloadList::starteds_add(Download* download) {
   m_starteds.push_back(download);
   // DEBUG_VIEW
   {
-    auto it = control->view_manager()->find("started");
-    if (it != control->view_manager()->end()) {
+    View* view = control->view_manager()->find("started");
+    if (view) {
       rpc::call_command("d.state.set", (int64_t)1, rpc::make_target(download));
-      View* view = *it;
       view->filter();
       const std::size_t views_count = view->size_visible();
       std::size_t list_count = m_starteds.size();
@@ -175,10 +172,9 @@ DownloadList::starteds_remove(Download* download) {
   m_starteds.erase(it); // TODO keep order or remove at end?
   // DEBUG_VIEW
   {
-    auto it = control->view_manager()->find("started");
-    if (it != control->view_manager()->end()) {
+    View* view = control->view_manager()->find("started");
+    if (view) {
       rpc::call_command("d.state.set", (int64_t)0, rpc::make_target(download));
-      View* view = *it;
       view->filter();
       const std::size_t views_count = view->size_visible();
       const std::size_t list_count = m_starteds.size();
@@ -308,8 +304,8 @@ DownloadList::insert(Download* download) {
 
     // This needs to be separated into two different calls to ensure
     // the download remains in the view.
-    std::for_each(control->view_manager()->begin(), control->view_manager()->end(), std::bind(std::mem_fn(&View::insert), std::placeholders::_1, download));
-    std::for_each(control->view_manager()->begin(), control->view_manager()->end(), std::bind(std::mem_fn(&View::filter_download), std::placeholders::_1, download));
+    control->view_manager()->for_each([&download](View* view){view->insert(download);});
+    control->view_manager()->for_each([&download](View* view){view->filter_download(download);});
 
     if (rpc::call_command_value("d.hashing", rpc::make_target(download)) != Download::variable_hashing_stopped) {
       hashings_add(download);
@@ -346,7 +342,7 @@ DownloadList::erase(iterator itr) {
   control->core()->download_store()->remove(*itr);
 
   DL_TRIGGER_EVENT(*itr, "event.download.erased");
-  std::for_each(control->view_manager()->begin(), control->view_manager()->end(), std::bind(std::mem_fn(&View::erase), std::placeholders::_1, *itr));
+  control->view_manager()->for_each([&itr](View* view){view->erase(*itr);});
 
   torrent::download_remove(*(*itr)->download());
   delete *itr;
@@ -468,8 +464,6 @@ DownloadList::resume(Download* download, int flags) {
 
     if (download->download()->info()->is_active())
       return;
-
-    rpc::parse_command_single(rpc::make_target(download), "view.set_visible=active");
 
     // We need to make sure the flags aren't reset if someone decideds
     // to call resume() while it is hashing, etc.
@@ -597,8 +591,6 @@ DownloadList::pause(Download* download, int flags) {
   try {
 
     download->set_resume_flags(~uint32_t());
-
-    rpc::parse_command_single(rpc::make_target(download), "view.set_not_visible=active");
 
     // Always clear hashing on pause. When a hashing request is added,
     // it should have cleared the hash resume data.
@@ -929,9 +921,8 @@ DownloadList::hashings_add(Download* download) {
   m_hashings.push_back(download);
   // DEBUG_VIEW
   {
-    auto it = control->view_manager()->find("hashing");
-    if (it != control->view_manager()->end()) {
-      View* view = *it;
+    View* view = control->view_manager()->find("hashing");
+    if (view) {
       view->filter();
       const std::size_t views_count = view->size_visible();
       const std::size_t list_count = m_hashings.size();
@@ -953,9 +944,8 @@ DownloadList::hashings_remove(Download* download) {
   m_hashings.erase(it); // TODO keep order or remove at end?
   // DEBUG_VIEW
   {
-    auto it = control->view_manager()->find("hashing");
-    if (it != control->view_manager()->end()) {
-      View* view = *it;
+    View* view = control->view_manager()->find("hashing");
+    if (view) {
       view->filter();
       const std::size_t views_count = view->size_visible();
       const std::size_t list_count = m_hashings.size();
