@@ -282,6 +282,35 @@ Manager::set_bind_address(const std::string& addr) {
   }
 }
 
+const std::string&
+Manager::dns_server_get() const {
+    return m_httpStack->dns_server_get();
+}
+
+void
+Manager::dns_server_set(const std::string& addr) {
+  control->core()->push_log_std("Watch out using a custom dns server is experimental.");
+
+  struct sockaddr_in s;
+  memset(&s, 0x00, sizeof(s));
+  // TODO parse custom port in addr
+  s.sin_port = htons(53);
+  s.sin_family = AF_INET;
+
+  int err = inet_pton(s.sin_family, addr.c_str(), &s.sin_addr);
+  if (err != 1) {
+    switch (err) {
+      case 0:
+        throw torrent::input_error("Could not set ipv4 dns server from [" + addr +"] cause it's not a valid network address in the specified address family.");
+      default:
+         throw torrent::input_error("Could not set ipv4 dns server from [" + addr +"] cause [" + std::string(gai_strerror(err)) + "].");
+    }
+  }
+
+  torrent::connection_manager()->dns_server_set(reinterpret_cast<const struct sockaddr*>(&s));
+  m_httpStack->dns_server_set(addr);
+}
+
 std::string
 Manager::local_address() const {
   return rak::socket_address::cast_from(torrent::connection_manager()->local_address())->address_str();

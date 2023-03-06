@@ -433,6 +433,13 @@ print_status_info(char* first, char* last) {
     first = print_buffer(first, last, "]");
   }
 
+  const std::string& dnsServer = control->core()->dns_server_get();
+  if (!dnsServer.empty()) {
+    first = print_buffer(first, last, " [dns ");
+    first = print_buffer(first, last, dnsServer.c_str());
+    first = print_buffer(first, last, "]");
+  }
+
   return first;
 }
 

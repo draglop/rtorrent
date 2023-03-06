@@ -281,6 +281,8 @@ initialize_command_network() {
 
   CMD2_ANY         ("network.bind_address",          std::bind(&core::Manager::bind_address, control->core()));
   CMD2_ANY_STRING_V("network.bind_address.set",      std::bind(&core::Manager::set_bind_address, control->core(), std::placeholders::_2));
+  CMD2_ANY         ("network.dns_server",            std::bind(&core::Manager::dns_server_get, control->core()));
+  CMD2_ANY_STRING_V("network.dns_server.set",        std::bind(&core::Manager::dns_server_set, control->core(), std::placeholders::_2));
   CMD2_ANY         ("network.local_address",         std::bind(&core::Manager::local_address, control->core()));
   CMD2_ANY_STRING_V("network.local_address.set",     std::bind(&core::Manager::set_local_address, control->core(), std::placeholders::_2));
   CMD2_ANY         ("network.proxy_address",         std::bind(&core::Manager::proxy_address, control->core()));

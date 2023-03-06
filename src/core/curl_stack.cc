@@ -190,6 +190,9 @@ CurlStack::add_get(CurlGet* get) {
   if (!m_bindAddress.empty())
     curl_easy_setopt(get->handle(), CURLOPT_INTERFACE, m_bindAddress.c_str());
 
+  if (!m_dnsServer.empty())
+    curl_easy_setopt(get->handle(), CURLOPT_DNS_SERVERS, m_dnsServer.c_str());
+
   if (!m_httpCaPath.empty())
     curl_easy_setopt(get->handle(), CURLOPT_CAPATH, m_httpCaPath.c_str());
 
