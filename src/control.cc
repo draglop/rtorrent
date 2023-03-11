@@ -72,7 +72,9 @@ Control::Control() :
 
   m_tick(0),
   m_shutdownReceived(false),
-  m_shutdownQuick(false) {
+  m_shutdownQuick(false),
+
+  m_networkActive(true) {
 
   m_core        = new core::Manager();
   m_viewManager = new core::ViewManager();
@@ -192,3 +194,14 @@ Control::handle_shutdown() {
   m_shutdownReceived = false;
 }
 
+void Control::network_active_set(bool active) {
+  core()->push_log_std("Watch out networking activation/deactivation is experimental.");
+
+  if (active) {
+    torrent::connection_manager()->network_active_set(true);
+    m_core->network_active_set(true);
+  } else {
+    m_core->network_active_set(false);
+    torrent::connection_manager()->network_active_set(false);
+  }
+}

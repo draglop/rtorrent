@@ -237,6 +237,9 @@ initialize_command_network() {
 
   CMD2_ANY_STRING  ("encoding.add", std::bind(&apply_encoding_list, std::placeholders::_2));
 
+  CMD2_ANY         ("network.active",            std::bind(&Control::network_active_get, control));
+  CMD2_ANY_VALUE_V ("network.active.set",        std::bind(&Control::network_active_set, control, std::placeholders::_2));
+
   // Isn't port_open used?
   CMD2_VAR_BOOL    ("network.port_open",   true);
   CMD2_VAR_BOOL    ("network.port_random", true);

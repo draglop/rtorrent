@@ -440,6 +440,10 @@ print_status_info(char* first, char* last) {
     first = print_buffer(first, last, "]");
   }
 
+  if (!torrent::connection_manager()->network_active_get()) {
+    first = print_buffer(first, last, " [networking: disabled]");
+  }
+
   return first;
 }
 

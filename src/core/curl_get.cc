@@ -39,7 +39,9 @@
 #include <iostream>
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include <torrent/connection_manager.h>
 #include <torrent/exceptions.h>
+#include <torrent/torrent.h>
 
 #include "globals.h"
 #include "curl_get.h"
@@ -61,6 +63,9 @@ CurlGet::~CurlGet() {
 
 void
 CurlGet::start() {
+  if (!torrent::connection_manager()->network_active_get())
+    throw torrent::internal_error("Tried to call CurlGet::start while networking is disabled.");
+
   if (is_busy())
     throw torrent::internal_error("Tried to call CurlGet::start on a busy object.");
 

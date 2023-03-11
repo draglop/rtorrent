@@ -107,6 +107,8 @@ public:
   void                resume(Download* d, int flags = 0);
   void                pause(Download* d, int flags = 0);
 
+  void                hold(bool);
+
   void                start(Download* d);
   void                stop(Download* d);
   void                resume_default(Download* d) { resume(d); }
@@ -183,6 +185,7 @@ private:
 
   std::vector<Download*> m_actives;
   std::vector<Download*> m_hashings;
+  std::vector<Download*> m_holds;
   std::vector<Download*> m_starteds;
 };
 

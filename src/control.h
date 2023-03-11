@@ -90,6 +90,9 @@ public:
   void                receive_normal_shutdown()     { m_shutdownReceived = true; __sync_synchronize(); }
   void                receive_quick_shutdown()      { m_shutdownReceived = true; m_shutdownQuick = true; __sync_synchronize(); }
 
+  bool                network_active_get() const    { return m_networkActive; };
+  void                network_active_set(bool active);
+
   core::Manager*      core()                        { return m_core; }
   core::ViewManager*  view_manager()                { return m_viewManager; }
   core::DhtManager*   dht_manager()                 { return m_dhtManager; }
@@ -136,6 +139,8 @@ private:
 
   bool                m_shutdownReceived lt_cacheline_aligned;
   bool                m_shutdownQuick lt_cacheline_aligned;
+
+  bool                m_networkActive;
 };
 
 #endif

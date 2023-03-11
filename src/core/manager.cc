@@ -504,4 +504,15 @@ Manager::update(int64_t time) {
   m_downloadList->update_hashings();
 }
 
+void
+Manager::network_active_set(bool active) {
+  if (active) {
+    m_httpQueue->active_set(true);
+    m_downloadList->hold(false);
+  } else {
+    m_downloadList->hold(true);
+    m_httpQueue->active_set(false);
+  }
+}
+
 }

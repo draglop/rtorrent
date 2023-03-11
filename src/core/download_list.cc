@@ -514,6 +514,8 @@ DownloadList::resume(Download* download, int flags) {
       //      torrent::resume_save_progress(*download->download(), download->download()->bencode()->get_key("libtorrent_resume"), true);
     }
 
+  if (torrent::connection_manager()->network_active_get()) {
+
     // If the DHT server is set to auto, start it now.
     if (!download->download()->info()->is_private())
       control->dht_manager()->auto_start();
@@ -526,6 +528,7 @@ DownloadList::resume(Download* download, int flags) {
     download->set_resume_flags(~uint32_t());
 
     DL_TRIGGER_EVENT(download, "event.download.resumed");
+  }
 
   } catch (torrent::local_error& e) {
     lt_log_print(torrent::LOG_TORRENT_ERROR, "Could not resume download: %s", e.what());
@@ -699,8 +702,10 @@ DownloadList::hash_done(Download* download) {
     rpc::call_command("d.complete.set", (int64_t)download->is_done(), rpc::make_target(download));
     torrent::resume_save_progress(*download->download(), download->download()->bencode()->get_key("libtorrent_resume"));
 
-    if (rpc::call_command_value("d.state", rpc::make_target(download)) == 1)
-      resume(download, download->resume_flags());
+    if (rpc::call_command_value("d.state", rpc::make_target(download)) == 1) {
+      if (torrent::connection_manager()->network_active_get())
+        resume(download, download->resume_flags());
+    }
 
     break;
 
@@ -886,6 +891,36 @@ DownloadList::process_meta_download(Download* download) {
 
   erase_ptr(download);
   control->core()->try_create_download_from_meta_download(bencode, metafile);
+}
+
+void
+DownloadList::hold(bool on) {
+  if (on) {
+    if (!m_actives.empty() && !m_holds.empty()) {
+      throw torrent::internal_error("DownloadList::hold: on called while threre's actives and already on hold downloads");
+    }
+
+    m_holds = m_actives;
+    for (Download* download : m_holds) {
+      pause(download);
+    }
+
+    if (!m_actives.empty()) {
+      throw torrent::internal_error("DownloadList::hold: on didn't clear actives list");
+    }
+  } else {
+    // on == false
+    if (!m_actives.empty()) {
+      throw torrent::internal_error("DownloadList::hold: off called while there's already actives downloads");
+    }
+    for (Download* download : m_holds) {
+      resume(download);
+    }
+    if (m_actives.size() != m_holds.size()) {
+      throw torrent::internal_error("DownloadList::hold: off didn't resume all downloads");
+    }
+    m_holds.clear();
+  }
 }
 
 bool

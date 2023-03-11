@@ -59,7 +59,8 @@ HttpQueue::insert(const std::string& url, std::iostream* s) {
   h->signal_done().push_back(std::bind(&HttpQueue::erase, this, signal_itr));
   h->signal_failed().push_back(std::bind(&HttpQueue::erase, this, signal_itr));
 
-  (*signal_itr)->start();
+  if (m_active)
+    (*signal_itr)->start();
 
   h.release();
 
@@ -84,6 +85,21 @@ HttpQueue::clear() {
     erase(begin());
 
   base_type::clear();
+}
+
+void
+HttpQueue::active_set(bool active) {
+  if (active == m_active)
+    return;
+
+  m_active = active;
+
+  if (m_active) {
+    for (base_type::value_type o: *this) {
+      if (!o->is_busy())
+        o->start();
+    }
+  }
 }
 
 }

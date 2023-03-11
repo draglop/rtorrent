@@ -64,6 +64,8 @@ public:
   void                initialize_second();
   void                cleanup();
 
+  void                network_active_set(bool active);
+
   void                listen_open();
 
   std::string         bind_address() const;

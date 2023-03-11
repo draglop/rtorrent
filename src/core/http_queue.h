@@ -68,6 +68,7 @@ public:
   HttpQueue() {}
   ~HttpQueue() { clear(); }
 
+  void        active_set(bool active);
   // Note that any slots connected to the CurlGet signals must be
   // pushed in front of the erase slot added by HttpQueue::insert.
   //
@@ -87,6 +88,8 @@ private:
   slot_factory    m_slot_factory;
   signal_curl_get m_signal_insert;
   signal_curl_get m_signal_erase;
+
+  bool            m_active = true;
 };
 
 }
