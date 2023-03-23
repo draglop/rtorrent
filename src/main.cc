@@ -268,6 +268,8 @@ main(int argc, char** argv) {
        "method.insert = event.download.closed,multi|rlookup|static\n"
        "method.insert = event.download.resumed,multi|rlookup|static\n"
        "method.insert = event.download.paused,multi|rlookup|static\n"
+       "method.insert = event.download.started,multi|rlookup|static\n"
+       "method.insert = event.download.stopped,multi|rlookup|static\n"
        
        "method.insert = event.download.finished,multi|rlookup|static\n"
        "method.insert = event.download.hash_done,multi|rlookup|static\n"
@@ -320,14 +322,12 @@ main(int argc, char** argv) {
        "view.filter = active,((false))\n"
 
        "view.add = started\n"
-       "view.filter = started,((false))\n"
-       "view.event_added   = started,{(view.set_not_visible,stopped),(d.state.set,1),(scheduler.simple.added)}\n"
-       "view.event_removed = started,{(view.set_visible,stopped),(scheduler.simple.removed)}\n"
+       "view.filter = started,((d.state))\n"
+       "view.filter_on = started,event.download.stopped,event.download.started\n"
 
        "view.add = stopped\n"
-       "view.filter = stopped,((false))\n"
-       "view.event_added   = stopped,{(d.state.set,0),(view.set_not_visible,started)}\n"
-       "view.event_removed = stopped,((view.set_visible,started))\n"
+       "view.filter = stopped,((not,((d.state))))\n"
+       "view.filter_on = stopped,event.download.stopped,event.download.started\n"
 
        "view.add = complete\n"
        "view.filter = complete,((d.complete))\n"

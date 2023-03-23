@@ -702,8 +702,6 @@ initialize_command_download() {
   CMD2_DL_LIST    ("d.delete_link", std::bind(&apply_d_change_link, std::placeholders::_1, std::placeholders::_2, 1));
   CMD2_DL         ("d.delete_tied", std::bind(&apply_d_delete_tied, std::placeholders::_1));
 
-  CMD2_FUNC_SINGLE("d.start",     "d.hashing_failed.set=0 ;view.set_visible=started");
-  CMD2_FUNC_SINGLE("d.stop",      "view.set_visible=stopped");
   CMD2_FUNC_SINGLE("d.try_start", "branch=\"or={d.hashing_failed=,d.ignore_commands=}\",{},{view.set_visible=started}");
   CMD2_FUNC_SINGLE("d.try_stop",  "branch=d.ignore_commands=, {}, {view.set_visible=stopped}");
   CMD2_FUNC_SINGLE("d.try_close", "branch=d.ignore_commands=, {}, {view.set_visible=stopped, d.close=}");
@@ -723,6 +721,8 @@ initialize_command_download() {
   CMD2_DL         ("d.is_not_partially_done", CMD2_ON_DATA(is_not_partially_done));
   CMD2_DL         ("d.is_meta",               CMD2_ON_INFO(is_meta_download));
 
+  CMD2_DL_V       ("d.start",      std::bind(&core::DownloadList::start, control->core()->download_list(), std::placeholders::_1));
+  CMD2_DL_V       ("d.stop",       std::bind(&core::DownloadList::stop, control->core()->download_list(), std::placeholders::_1));
   CMD2_DL_V       ("d.resume",     std::bind(&core::DownloadList::resume_default, control->core()->download_list(), std::placeholders::_1));
   CMD2_DL_V       ("d.pause",      std::bind(&core::DownloadList::pause_default, control->core()->download_list(), std::placeholders::_1));
   CMD2_DL_V       ("d.open",       std::bind(&core::DownloadList::open_throw, control->core()->download_list(), std::placeholders::_1));

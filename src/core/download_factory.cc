@@ -325,6 +325,10 @@ DownloadFactory::receive_success() {
     if (!m_session)
        rpc::call_command("d.state.set", (int64_t)m_start, rpc::make_target(download));
 
+    if (rpc::call_command_value("d.state", rpc::make_target(download)) == 1) {
+       rpc::call_command("d.start", torrent::Object(), rpc::make_target(download));
+    }
+
     rpc::commands.call_catch(m_session ? "event.download.inserted_session" : "event.download.inserted_new",
                              rpc::make_target(download), torrent::Object(), "Download event action failed: ");
 

@@ -49,63 +49,47 @@
 #include "command_helpers.h"
 
 torrent::Object
-cmd_scheduler_simple_added(core::Download* download) {
-  unsigned int numActive = (*control->view_manager()->find("active"))->size_visible();
-  int64_t maxActive = rpc::call_command("scheduler.max_active", torrent::Object()).as_value();
-  
-  if (numActive < (uint64_t)maxActive)
-    control->core()->download_list()->resume(download);
-
-  return torrent::Object();
-}
-
-torrent::Object
-cmd_scheduler_simple_removed(core::Download* download) {
-  control->core()->download_list()->pause(download);
-
-  core::View* viewActive = *control->view_manager()->find("active");
-  int64_t maxActive = rpc::call_command("scheduler.max_active", torrent::Object()).as_value();
-
-  if ((int64_t)viewActive->size_visible() >= maxActive)
-    return torrent::Object();
-
-  // The 'started' view contains all the views we may choose amongst.
-  core::View* viewStarted = *control->view_manager()->find("started");
-
-  for (core::View::iterator itr = viewStarted->begin_visible(), last = viewStarted->end_visible(); itr != last; itr++) {
-    if ((*itr)->is_active())
-      continue;
-
-    control->core()->download_list()->resume(*itr);
-  }
-
-  return torrent::Object();
-}
-
-torrent::Object
 cmd_scheduler_simple_update(core::Download* download) {
-  core::View* viewActive = *control->view_manager()->find("active");
-  core::View* viewStarted = *control->view_manager()->find("started");
+  const std::size_t max_active = static_cast<std::size_t>(rpc::call_command("scheduler.max_active", torrent::Object()).as_value());
+  const std::vector<core::Download *>& actives = control->core()->download_list()->actives();
+  const std::vector<core::Download *>& starteds = control->core()->download_list()->starteds();
 
-  unsigned int numActive = viewActive->size_visible();
-  uint64_t maxActive = rpc::call_command("scheduler.max_active", torrent::Object()).as_value();
+  if ((actives.size() < max_active) && (starteds.size() > actives.size())) {
+    std::size_t download_to_active_count = max_active - actives.size();
+    std::vector<core::Download*> downloads_to_active;
+    downloads_to_active.reserve(download_to_active_count);
 
-  if (viewActive->size_visible() < maxActive) {
+    for (core::Download* download : starteds) {
+      if (!download->is_active()) {
+        downloads_to_active.push_back(download);
 
-    for (core::View::iterator itr = viewStarted->begin_visible(), last = viewStarted->end_visible(); itr != last; itr++) {
-      if ((*itr)->is_active())
-        continue;
-
-      control->core()->download_list()->resume(*itr);
-
-      if (++numActive >= maxActive)
-        break;
+        --download_to_active_count;
+        if (download_to_active_count == 0) {
+          break;
+        }
+      }
     }
 
-  } else if (viewActive->size_visible() > maxActive) {
-    
-    while (viewActive->size_visible() > maxActive)
-      control->core()->download_list()->pause(*viewActive->begin_visible());
+    for (core::Download* download : downloads_to_active) {
+      control->core()->download_list()->resume(download);
+    }
+  } else if (actives.size() > max_active) {
+    std::size_t download_to_pause_count = actives.size() - max_active;
+    std::vector<core::Download*> downloads_to_pause;
+    downloads_to_pause.reserve(download_to_pause_count);
+
+    for (core::Download* download : actives) {
+      downloads_to_pause.push_back(download);
+
+      --download_to_pause_count;
+      if (download_to_pause_count == 0) {
+        break;
+      }
+    }
+
+    for (core::Download* download : downloads_to_pause) {
+      control->core()->download_list()->pause(download);
+    }
   }
 
   return torrent::Object();
@@ -115,7 +99,5 @@ void
 initialize_command_scheduler() {
   CMD2_VAR_VALUE("scheduler.max_active", int64_t(-1));
 
-  CMD2_DL("scheduler.simple.added",   std::bind(&cmd_scheduler_simple_added, std::placeholders::_1));
-  CMD2_DL("scheduler.simple.removed", std::bind(&cmd_scheduler_simple_removed, std::placeholders::_1));
   CMD2_DL("scheduler.simple.update",  std::bind(&cmd_scheduler_simple_update, std::placeholders::_1));
 }

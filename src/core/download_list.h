@@ -107,10 +107,15 @@ public:
   void                resume(Download* d, int flags = 0);
   void                pause(Download* d, int flags = 0);
 
+  void                start(Download* d);
+  void                stop(Download* d);
   void                resume_default(Download* d) { resume(d); }
   void                pause_default(Download* d) { pause(d); }
 
   void                check_hash(Download* d);
+
+  const std::vector<Download*>& actives();
+  const std::vector<Download*>& starteds();
 
   enum {
     D_SLOTS_INSERT,
@@ -164,6 +169,14 @@ private:
   void                confirm_finished(Download* d);
 
   void                process_meta_download(Download* d);
+
+  void                actives_add(Download* d);
+  void                actives_remove(Download* d);
+  bool                starteds_add(Download* d);
+  bool                starteds_remove(Download* d);
+
+  std::vector<Download*> m_actives;
+  std::vector<Download*> m_starteds;
 };
 
 }

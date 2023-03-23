@@ -68,12 +68,133 @@
 #define DL_TRIGGER_EVENT(download, event_name) \
   rpc::commands.call_catch(event_name, rpc::make_target(download), torrent::Object(), "Event '" event_name "' failed: ");
 
+#define LT_LOG_THIS(log_level, log_fmt, ...)                         \
+  lt_log_print_info(torrent::LOG_TORRENT_##log_level, download->info(), "download_list", log_fmt, __VA_ARGS__)
+
+namespace {
+
+template<typename C>
+bool exists(const std::vector<C>& v, C c) {
+  auto it = std::find(v.begin(), v.end(), c);
+  return it != v.end();
+}
+
+} // anon namespace
+
 namespace core {
 
+const std::vector<Download*>&
+DownloadList::actives() {
+  return m_actives;
+}
+
+void
+DownloadList::actives_add(Download* download) {
+  LT_LOG_THIS(INFO, "actives add", nullptr);
+  if (exists(m_actives, download)) {
+    throw torrent::internal_error("DownloadList::actives_add: download already present [" + download->download()->info()->hash().str() + "]");
+  }
+  m_actives.push_back(download);
+  // DEBUG_VIEW
+  {
+    auto it = control->view_manager()->find("active");
+    if (it != control->view_manager()->end()) {
+      View* view = *it;
+      //view->filter();
+      const std::size_t views_count = view->size_visible();
+      const std::size_t list_count = m_actives.size();
+      if (views_count != list_count) {
+        throw torrent::internal_error("DownloadList::actives_add: count mismtach, active view has [" + std::to_string(views_count) + "] but list hash [" + std::to_string(list_count) + "].");
+      }
+    }
+  }
+}
+
+void
+DownloadList::actives_remove(Download* download) {
+  LT_LOG_THIS(INFO, "actives remove", nullptr);
+  auto it = std::find(m_actives.begin(), m_actives.end(), download);
+  if (it == m_actives.end()) {
+    throw torrent::internal_error("DownloadList::actives_remove: download not found [" + download->download()->info()->hash().str() + "]");
+  }
+  m_actives.erase(it); // TODO keep order or remove at end?
+  // DEBUG_VIEW
+  {
+    auto it = control->view_manager()->find("active");
+    if (it != control->view_manager()->end()) {
+      View* view = *it;
+      //view->filter();
+      const std::size_t views_count = view->size_visible();
+      const std::size_t list_count = m_actives.size();
+      if (views_count != list_count) {
+        throw torrent::internal_error("DownloadList::actives_remove: count mismtach, active view has [" + std::to_string(views_count) + "] but list hash [" + std::to_string(list_count) + "].");
+      }
+    }
+  }
+}
+
+const std::vector<Download*>&
+DownloadList::starteds() {
+  return m_starteds;
+}
+
+bool
+DownloadList::starteds_add(Download* download) {
+  LT_LOG_THIS(DEBUG, "adding to started list.", nullptr);
+  if (exists(m_starteds, download)) {
+    LT_LOG_THIS(INFO, "already started.", nullptr);
+    return false;
+  }
+  m_starteds.push_back(download);
+  // DEBUG_VIEW
+  {
+    auto it = control->view_manager()->find("started");
+    if (it != control->view_manager()->end()) {
+      rpc::call_command("d.state.set", (int64_t)1, rpc::make_target(download));
+      View* view = *it;
+      view->filter();
+      const std::size_t views_count = view->size_visible();
+      std::size_t list_count = m_starteds.size();
+      if (views_count != list_count) {
+        throw torrent::internal_error("DownloadList::starteds_add: count mismtach, started view has [" + std::to_string(views_count) + "] but list hash [" + std::to_string(list_count) + "].");
+      }
+    }
+  }
+
+  return true;
+}
+
+bool
+DownloadList::starteds_remove(Download* download) {
+  LT_LOG_THIS(DEBUG, "removing from started list.", nullptr);
+  auto it = std::find(m_starteds.begin(), m_starteds.end(), download);
+  if (it == m_starteds.end()) {
+    LT_LOG_THIS(INFO, "already stopped.", nullptr);
+    return false;
+  }
+  m_starteds.erase(it); // TODO keep order or remove at end?
+  // DEBUG_VIEW
+  {
+    auto it = control->view_manager()->find("started");
+    if (it != control->view_manager()->end()) {
+      rpc::call_command("d.state.set", (int64_t)0, rpc::make_target(download));
+      View* view = *it;
+      view->filter();
+      const std::size_t views_count = view->size_visible();
+      const std::size_t list_count = m_starteds.size();
+      if (views_count != list_count) {
+        throw torrent::internal_error("DownloadList::starteds_remove: count mismtach, started view has [" + std::to_string(views_count) + "] but list hash [" + std::to_string(list_count) + "].");
+      }
+    }
+  }
+
+  return true;
+}
+
 inline void
-DownloadList::check_contains(Download* d) {
+DownloadList::check_contains(Download* download) {
 #ifdef USE_EXTRA_DEBUG
-  if (std::find(begin(), end(), d) == end())
+  if (std::find(begin(), end(), download) == end())
     throw torrent::internal_error("DownloadList::check_contains(...) failed.");
 #endif
 }
@@ -275,6 +396,8 @@ void
 DownloadList::close_directly(Download* download) {
   lt_log_print_info(torrent::LOG_TORRENT_INFO, download->info(), "download_list", "Closing download directly.");
 
+  starteds_remove(download);
+
   if (download->download()->info()->is_active()) {
     download->download()->stop(torrent::Download::stop_skip_tracker);
 
@@ -346,8 +469,10 @@ DownloadList::resume(Download* download, int flags) {
 
     // We need to make sure the flags aren't reset if someone decideds
     // to call resume() while it is hashing, etc.
-    if (download->resume_flags() == ~uint32_t())
+    if (download->resume_flags() == ~uint32_t()) {
+      actives_add(download);
       download->set_resume_flags(flags);
+    }
 
     // Manual or end-of-download rehashing clears the resume data so
     // we can just start the hashing again without clearing it again.
@@ -427,6 +552,56 @@ DownloadList::resume(Download* download, int flags) {
 }
 
 void
+DownloadList::start(Download* download) {
+  LT_LOG_THIS(INFO, "start download.", nullptr);
+
+  check_contains(download);
+
+  if (!starteds_add(download)) {
+    // can happen, start is a UI call
+    return;
+  }
+  rpc::call_command("d.state.set", (int64_t)1, rpc::make_target(download));
+
+  download->set_hash_failed(false);
+
+  const std::size_t max_active = static_cast<std::size_t>(rpc::call_command("scheduler.max_active", torrent::Object()).as_value());
+  if (m_actives.size() < max_active) {
+      resume(download);
+  }
+
+  DL_TRIGGER_EVENT(download, "event.download.started");
+}
+
+void
+DownloadList::stop(Download* download) {
+  LT_LOG_THIS(INFO, "stop download.", nullptr);
+
+  check_contains(download);
+
+  if(!starteds_remove(download)) {
+    // can happen, stop is a UI call
+    return;
+  }
+
+  control->core()->download_list()->pause(download);
+  rpc::call_command("d.state.set", (int64_t)0, rpc::make_target(download));
+
+  const std::size_t max_active = static_cast<std::size_t>(rpc::call_command("scheduler.max_active", torrent::Object()).as_value());
+  if (m_starteds.size() >= max_active) {
+    // find 1 inactive to resume
+    for (Download* d : m_starteds) {
+      if (!d->is_active()) {
+        resume(d);
+        break;
+      }
+    }
+  }
+
+  DL_TRIGGER_EVENT(download, "event.download.stopped");
+}
+
+void
 DownloadList::pause(Download* download, int flags) {
   check_contains(download);
 
@@ -449,6 +624,8 @@ DownloadList::pause(Download* download, int flags) {
 
     if (!download->download()->info()->is_active())
       return;
+
+    actives_remove(download);
 
     download->download()->stop(flags);
     torrent::resume_save_progress(*download->download(), download->download()->bencode()->get_key("libtorrent_resume"));
@@ -532,6 +709,7 @@ DownloadList::hash_done(Download* download) {
     // f.ex deleted, then we clear the state and complete.
     if (rpc::call_command_value("d.complete", rpc::make_target(download)) && !download->is_done()) {
       rpc::call_command("d.state.set", (int64_t)0, rpc::make_target(download));
+      starteds_remove(download);
       download->set_message("Download registered as completed, but hash check returned unfinished chunks.");
     }
 
