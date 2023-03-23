@@ -154,8 +154,8 @@ PathInput::range_type
 PathInput::find_incomplete(utils::Directory& d, const std::string& f) {
   range_type r;
 
-  r.first  = std::find_if(d.begin(), d.end(), rak::bind2nd(std::ptr_fun(&find_complete_not_compare), f));
-  r.second = std::find_if(r.first,   d.end(), rak::bind2nd(std::ptr_fun(&find_complete_compare), f));
+  r.first  = std::find_if(d.begin(), d.end(), rak::bind2nd(std::function<bool (const utils::directory_entry&, const std::string&)>(&find_complete_not_compare), f));
+  r.second = std::find_if(r.first,   d.end(), rak::bind2nd(std::function<bool (const utils::directory_entry&, const std::string&)>(&find_complete_compare), f));
 
   return r;
 }

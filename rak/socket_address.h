@@ -392,8 +392,8 @@ socket_address::copy(const socket_address& src, size_t length) {
 
 inline void
 socket_address::copy_sockaddr(const sockaddr* src) {
-  std::memset(this, 0, sizeof(socket_address));
-  std::memcpy(this, src, socket_address::cast_from(src)->length());
+  const socket_address* sa = socket_address::cast_from(src);
+  copy(*sa, sa->length());
 }
 
 inline bool

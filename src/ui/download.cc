@@ -96,7 +96,7 @@ Download::Download(core::Download* d) :
   bind_keys();
 }
 
-Download::~Download() {
+Download::~Download() noexcept(false) {
   if (is_active())
     throw torrent::internal_error("ui::Download::~Download() called on an active object.");
 

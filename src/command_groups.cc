@@ -122,7 +122,7 @@ cg_get_index(const torrent::Object& raw_args) {
   if (arg.is_string()) {
     if (!rpc::parse_whole_value_nothrow(arg.as_string().c_str(), &index)) {
       std::vector<torrent::choke_group*>::iterator itr = std::find_if(cg_list_hack.begin(), cg_list_hack.end(),
-                                                                      rak::equal(arg.as_string(), std::mem_fun(&torrent::choke_group::name)));
+                                                                      rak::equal(arg.as_string(), std::mem_fn(&torrent::choke_group::name)));
 
       if (itr == cg_list_hack.end())
         throw torrent::input_error("Choke group not found.");
@@ -180,7 +180,7 @@ apply_cg_insert(const std::string& arg) {
 
   if (arg.empty() ||
       std::find_if(cg_list_hack.begin(), cg_list_hack.end(),
-                   rak::equal(arg, std::mem_fun(&torrent::choke_group::name))) != cg_list_hack.end())
+                   rak::equal(arg, std::mem_fn(&torrent::choke_group::name))) != cg_list_hack.end())
     throw torrent::input_error("Duplicate name for choke group.");
 
   cg_list_hack.push_back(new torrent::choke_group());
@@ -195,7 +195,7 @@ apply_cg_insert(const std::string& arg) {
 torrent::Object
 apply_cg_index_of(const std::string& arg) {
   std::vector<torrent::choke_group*>::iterator itr =
-    std::find_if(cg_list_hack.begin(), cg_list_hack.end(), rak::equal(arg, std::mem_fun(&torrent::choke_group::name)));
+    std::find_if(cg_list_hack.begin(), cg_list_hack.end(), rak::equal(arg, std::mem_fn(&torrent::choke_group::name)));
 
   if (itr == cg_list_hack.end())
     throw torrent::input_error("Choke group not found.");

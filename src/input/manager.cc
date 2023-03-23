@@ -64,7 +64,7 @@ Manager::pressed(int key) {
   if (m_textInput != NULL)
     m_textInput->pressed(key);
   else
-    std::find_if(rbegin(), rend(), std::bind2nd(std::mem_fun(&Bindings::pressed), key));
+    std::find_if(rbegin(), rend(), std::bind(std::mem_fn(&Bindings::pressed), std::placeholders::_1, key));
 }
 
 }

@@ -131,7 +131,7 @@ apply_view_set(const torrent::Object::list_type& args) {
 //   if (args.front().as_string() == "main")
 //     control->ui()->download_list()->set_view(*itr);
 //   else
-    throw torrent::input_error("No such target.");
+  throw torrent::input_error("No such target.");
 }
 
 torrent::Object

@@ -133,7 +133,7 @@ CurlGet::receive_timeout() {
 double
 CurlGet::size_done() {
   double d = 0.0;
-  curl_easy_getinfo(m_handle, CURLINFO_SIZE_DOWNLOAD, &d);
+  curl_easy_getinfo(m_handle, CURLINFO_SIZE_DOWNLOAD_T, &d);
 
   return d;
 }
@@ -141,7 +141,7 @@ CurlGet::size_done() {
 double
 CurlGet::size_total() {
   double d = 0.0;
-  curl_easy_getinfo(m_handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &d);
+  curl_easy_getinfo(m_handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &d);
 
   return d;
 }

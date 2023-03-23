@@ -143,7 +143,7 @@ load_session_torrents() {
 
 void
 load_arg_torrents(char** first, char** last) {
-  //std::for_each(begin, end, std::bind1st(std::mem_fun(&core::Manager::insert), &control->get_core()));
+  //std::for_each(begin, end, std::bind(std::mem_fn(&core::Manager::insert), &control->get_core(), std::placeholders::_1));
   for (; first != last; ++first) {
     core::DownloadFactory* f = new core::DownloadFactory(control->core());
 

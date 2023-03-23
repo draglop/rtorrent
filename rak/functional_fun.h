@@ -66,7 +66,7 @@ public:
 };
 
 template <typename Result, typename Arg1>
-class function_base1 : public std::unary_function<Arg1, Result> {
+class function_base1 : public std::function<Result (Arg1)> {
 public:
   virtual ~function_base1() {}
 
@@ -74,7 +74,7 @@ public:
 };
 
 template <typename Result, typename Arg1, typename Arg2>
-class function_base2 : public std::binary_function<Arg1, Arg2, Result> {
+class function_base2 : public std::function<Result (Arg1, Arg2)> {
 public:
   virtual ~function_base2() {}
 

@@ -73,7 +73,7 @@ public:
   } Display;
 
   Download(core::Download* d);
-  ~Download();
+  ~Download() noexcept(false);
 
   void                activate(display::Frame* frame, bool focus = true);
   void                disable();

@@ -74,7 +74,7 @@ public:
   static const int call_file       = 5;
   static const int call_file_itr   = 6;
 
-  XmlRpc() : m_env(NULL), m_registry(NULL), m_dialect(dialect_i8) {}
+  XmlRpc() : m_env(NULL), m_dialect(dialect_i8) {}
 
   bool                is_valid() const { return m_env != NULL; }
 
@@ -98,7 +98,6 @@ public:
 
 private:
   void*               m_env;
-  void*               m_registry;
 
   int                 m_dialect;
 

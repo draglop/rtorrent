@@ -594,7 +594,7 @@ d_list_push_back_unique(core::Download* download, const torrent::Object& rawArgs
   torrent::Object::list_type& list = download_get_variable(download, first_key, second_key).as_list();
 
   if (std::find_if(list.begin(), list.end(),
-                   rak::bind1st(std::ptr_fun(&torrent::object_equal), args)) == list.end())
+                   rak::bind1st(std::function<bool (const torrent::Object&, const torrent::Object&)>(&torrent::object_equal), args)) == list.end())
     list.push_back(rawArgs);
 
   return torrent::Object();
@@ -606,7 +606,7 @@ d_list_has(core::Download* download, const torrent::Object& rawArgs, const char*
   torrent::Object::list_type& list = download_get_variable(download, first_key, second_key).as_list();
 
   return (int64_t)(std::find_if(list.begin(), list.end(),
-                                rak::bind1st(std::ptr_fun(&torrent::object_equal), args)) != list.end());
+                                rak::bind1st(std::function<bool (const torrent::Object&, const torrent::Object&)>(&torrent::object_equal), args)) != list.end());
 }
 
 torrent::Object
@@ -614,7 +614,7 @@ d_list_remove(core::Download* download, const torrent::Object& rawArgs, const ch
   const torrent::Object& args = (rawArgs.is_list() && !rawArgs.as_list().empty()) ? rawArgs.as_list().front() : rawArgs;
   torrent::Object::list_type& list = download_get_variable(download, first_key, second_key).as_list();
 
-  list.erase(std::remove_if(list.begin(), list.end(), rak::bind1st(std::ptr_fun(&torrent::object_equal), args)), list.end());
+  list.erase(std::remove_if(list.begin(), list.end(), rak::bind1st(std::function<bool (const torrent::Object&, const torrent::Object&)>(&torrent::object_equal), args)), list.end());
 
   return torrent::Object();
 }

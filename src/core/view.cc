@@ -54,7 +54,7 @@
 namespace core {
 
 // Also add focus thingie here?
-struct view_downloads_compare : std::binary_function<Download*, Download*, bool> {
+struct view_downloads_compare : std::function<bool (Download*, Download*)> {
   view_downloads_compare(const torrent::Object& cmd) : m_command(cmd) {}
 
   bool operator () (Download* d1, Download* d2) const {
@@ -88,7 +88,7 @@ struct view_downloads_compare : std::binary_function<Download*, Download*, bool>
   const torrent::Object& m_command;
 };
 
-struct view_downloads_filter : std::unary_function<Download*, bool> {
+struct view_downloads_filter : std::function<bool (Download*)> {
   view_downloads_filter(const torrent::Object& cmd, const torrent::Object& cmd2) : m_command(cmd), m_command2(cmd2) {}
 
   bool operator () (Download* d1) const {
@@ -176,7 +176,7 @@ View::initialize(const std::string& name) {
   m_name = name;
 
   // Urgh, wrong. No filtering being done.
-  std::for_each(dlist->begin(), dlist->end(), rak::bind1st(std::mem_fun(&View::push_back), this));
+  std::for_each(dlist->begin(), dlist->end(), rak::bind1st(std::mem_fn(&View::push_back), this));
 
   m_size = base_type::size();
   m_focus = 0;
@@ -358,7 +358,7 @@ View::clear_filter_on() {
 
 inline void
 View::insert_visible(Download* d) {
-  iterator itr = std::find_if(begin_visible(), end_visible(), std::bind1st(view_downloads_compare(m_sortNew), d));
+  iterator itr = std::find_if(begin_visible(), end_visible(), std::bind(view_downloads_compare(m_sortNew), d, std::placeholders::_1));
 
   m_size++;
   m_focus += (m_focus >= position(itr));

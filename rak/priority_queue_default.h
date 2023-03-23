@@ -52,8 +52,10 @@ public:
 
   priority_item() {}
   ~priority_item() {
+#ifdef    RAK_ENABLE_EXTRA_DEBUG
     if (is_queued())
       throw torrent::internal_error("priority_item::~priority_item() called on a queued item.");
+#endif
 
     m_time = timer();
     m_slot = slot_void();

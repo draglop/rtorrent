@@ -204,9 +204,9 @@ Manager::cleanup() {
 void
 Manager::shutdown(bool force) {
   if (!force)
-    std::for_each(m_downloadList->begin(), m_downloadList->end(), std::bind1st(std::mem_fun(&DownloadList::pause_default), m_downloadList));
+    std::for_each(m_downloadList->begin(), m_downloadList->end(), std::bind(std::mem_fn(&DownloadList::pause_default), m_downloadList, std::placeholders::_1));
   else
-    std::for_each(m_downloadList->begin(), m_downloadList->end(), std::bind1st(std::mem_fun(&DownloadList::close_quick), m_downloadList));
+    std::for_each(m_downloadList->begin(), m_downloadList->end(), std::bind(std::mem_fn(&DownloadList::close_quick), m_downloadList, std::placeholders::_1));
 }
 
 void
@@ -443,16 +443,16 @@ path_expand(std::vector<std::string>* paths, const std::string& pattern) {
       // Only include filenames starting with '.' if the pattern
       // starts with the same.
       itr->update((r.pattern()[0] != '.') ? utils::Directory::update_hide_dot : 0);
-      itr->erase(std::remove_if(itr->begin(), itr->end(), rak::on(rak::mem_ref(&utils::directory_entry::d_name), std::not1(r))), itr->end());
+      itr->erase(std::remove_if(itr->begin(), itr->end(), [&r] (const utils::directory_entry& de) { return !r(de.d_name); } ), itr->end());
 
-      std::transform(itr->begin(), itr->end(), std::back_inserter(nextCache), rak::bind1st(std::ptr_fun(&path_expand_transform), itr->path() + (itr->path() == "/" ? "" : "/")));
+      std::transform(itr->begin(), itr->end(), std::back_inserter(nextCache), rak::bind1st(std::function<utils::Directory (std::string path, const utils::directory_entry&)>(&path_expand_transform), itr->path() + (itr->path() == "/" ? "" : "/")));
     }
 
     currentCache.clear();
     currentCache.swap(nextCache);
   }
 
-  std::transform(currentCache.begin(), currentCache.end(), std::back_inserter(*paths), std::mem_fun_ref(&utils::Directory::path));
+  std::transform(currentCache.begin(), currentCache.end(), std::back_inserter(*paths), std::mem_fn(&utils::Directory::path));
 }
 
 bool
@@ -486,7 +486,7 @@ Manager::try_create_download_expand(const std::string& uri, int flags, command_l
 void
 Manager::receive_hashing_changed() {
   bool foundHashing = std::find_if(m_hashingView->begin_visible(), m_hashingView->end_visible(),
-                                   std::mem_fun(&Download::is_hash_checking)) != m_hashingView->end_visible();
+                                   std::mem_fn(&Download::is_hash_checking)) != m_hashingView->end_visible();
   
   // Try quick hashing all those with hashing == initial, set them to
   // something else when failed.

@@ -62,7 +62,7 @@ ElementPeerList::ElementPeerList(core::Download* d) :
   m_listItr = m_list.end();
 
   std::for_each(m_download->download()->connection_list()->begin(), m_download->download()->connection_list()->end(),
-                rak::bind1st(std::mem_fun<void,PList,PList::const_reference>(&PList::push_back), &m_list));
+                std::bind(static_cast<void (PList::*)(const PList::value_type &)>(&PList::push_back), &m_list, std::placeholders::_1));
 
   torrent::ConnectionList* connection_list = m_download->download()->connection_list();
 

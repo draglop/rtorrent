@@ -88,7 +88,7 @@ bool
 OptionParser::has_flag(char flag, int argc, char** argv) {
   char options[3] = { '-', flag, '\0' };
 
-  return std::find_if(argv, argv + argc, std::not1(std::bind1st(std::ptr_fun(&std::strcmp), options))) != argv + argc;
+  return std::find_if(argv, argv + argc, std::bind(std::logical_not<bool>(), std::bind(std::function<int (const char*, const char*)>(&std::strcmp), options, std::placeholders::_1))) != argv + argc;
 }
 
 std::string

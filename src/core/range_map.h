@@ -46,13 +46,10 @@ namespace core {
 
 // The template arguments have the same semantics as std::map.
 // Exception: if set_merge is used, the value type must have a defined operator ==.
-template<typename Key, typename T, typename Compare = std::less<Key>,
-         typename Alloc = std::allocator<std::pair<const Key, T> > >
-class RangeMap : private std::map<Key, std::pair<Key, T>, Compare,
-                                 typename Alloc::template rebind<std::pair<const Key, std::pair<Key, T> > >::other> {
+template<typename Key, typename T, typename Compare = std::less<Key> >
+class RangeMap : private std::map<Key, std::pair<Key, T>, Compare> {
 
-  typedef std::map<Key, std::pair<Key, T>, Compare,
-                   typename Alloc::template rebind<std::pair<const Key, std::pair<Key, T> > >::other> base_type;
+  typedef std::map<Key, std::pair<Key, T>, Compare> base_type;
 
 public:
   RangeMap() {}
@@ -104,9 +101,9 @@ private:
 // .second.first   Beginning of range.
 // .second.second  Value.
 
-template<typename Key, typename T, typename C, typename A>
-inline typename RangeMap<Key,T,C,A>::iterator
-RangeMap<Key,T,C,A>::crop_overlap(const Key& _begin, const Key& _end) {
+template<typename Key, typename T, typename C>
+inline typename RangeMap<Key,T,C>::iterator
+RangeMap<Key,T,C>::crop_overlap(const Key& _begin, const Key& _end) {
   typename RangeMap::iterator itr = base_type::upper_bound(_begin);
 
   while (itr != end() && key_comp()(itr->second.first, _end)) {
@@ -128,9 +125,9 @@ RangeMap<Key,T,C,A>::crop_overlap(const Key& _begin, const Key& _end) {
   return itr;
 }
 
-template<typename Key, typename T, typename C, typename A>
-inline typename RangeMap<Key,T,C,A>::const_iterator
-RangeMap<Key,T,C,A>::set_merge(Key _begin, const Key& _end, const T& value) {
+template<typename Key, typename T, typename C>
+inline typename RangeMap<Key,T,C>::const_iterator
+RangeMap<Key,T,C>::set_merge(Key _begin, const Key& _end, const T& value) {
   if (!key_comp()(_begin, _end))
     return end();
 
@@ -156,18 +153,18 @@ RangeMap<Key,T,C,A>::set_merge(Key _begin, const Key& _end, const T& value) {
   return base_type::insert(itr, typename RangeMap::value_type(_end, typename RangeMap::mapped_type(_begin, value)));
 }
 
-template<typename Key, typename T, typename C, typename A>
-inline typename RangeMap<Key,T,C,A>::const_iterator
-RangeMap<Key,T,C,A>::set_range(const Key& _begin, const Key& _end, const T& value) {
+template<typename Key, typename T, typename C>
+inline typename RangeMap<Key,T,C>::const_iterator
+RangeMap<Key,T,C>::set_range(const Key& _begin, const Key& _end, const T& value) {
   if (!key_comp()(_begin, _end))
     return end();
 
   return base_type::insert(crop_overlap(_begin, _end), typename RangeMap::value_type(_end, typename RangeMap::mapped_type(_begin, value)));
 }
 
-template<typename Key, typename T, typename C, typename A>
-inline typename RangeMap<Key,T,C,A>::const_iterator
-RangeMap<Key,T,C,A>::find(const Key& key) const {
+template<typename Key, typename T, typename C>
+inline typename RangeMap<Key,T,C>::const_iterator
+RangeMap<Key,T,C>::find(const Key& key) const {
   typename RangeMap::const_iterator itr = base_type::upper_bound(key);
 
   if (itr != end() && key_comp()(key, itr->second.first))
@@ -176,9 +173,9 @@ RangeMap<Key,T,C,A>::find(const Key& key) const {
   return itr;
 }
 
-template<typename Key, typename T, typename C, typename A>
+template<typename Key, typename T, typename C>
 inline const T&
-RangeMap<Key,T,C,A>::get(const Key& key) const {
+RangeMap<Key,T,C>::get(const Key& key) const {
   typename RangeMap::const_iterator itr = find(key);
 
   if (itr == end())
@@ -187,9 +184,9 @@ RangeMap<Key,T,C,A>::get(const Key& key) const {
   return itr->second.second;
 }
 
-template<typename Key, typename T, typename C, typename A>
+template<typename Key, typename T, typename C>
 inline T
-RangeMap<Key,T,C,A>::get(const Key& key, T def) const {
+RangeMap<Key,T,C>::get(const Key& key, T def) const {
   typename RangeMap::const_iterator itr = find(key);
   return (itr == end() ? def : itr->second.second);
 }
