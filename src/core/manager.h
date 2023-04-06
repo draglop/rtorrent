@@ -48,9 +48,6 @@ public:
   HttpQueue*          http_queue()                        { return m_httpQueue; }
   CurlStack*          http_stack()                        { return m_httpStack; }
 
-  View*               hashing_view()                      { return m_hashingView; }
-  void                set_hashing_view(View* v);
-
   torrent::log_buffer* log_important()                    { return m_log_important.get(); }
   torrent::log_buffer* log_complete()                     { return m_log_complete.get(); }
 
@@ -80,6 +77,7 @@ public:
   std::string         proxy_address() const;
   void                set_proxy_address(const std::string& addr);
 
+  void                update(int64_t time);
   void                shutdown(bool force);
 
   void                push_log(const char* msg);
@@ -109,15 +107,12 @@ private:
   void                initialize_bencode(Download* d);
 
   void                receive_http_failed(std::string msg);
-  void                receive_hashing_changed();
 
   DownloadList*       m_downloadList;
   DownloadStore*      m_downloadStore;
   FileStatusCache*    m_fileStatusCache;
   HttpQueue*          m_httpQueue;
   CurlStack*          m_httpStack;
-
-  View*               m_hashingView;
 
   ThrottleMap         m_throttles;
   AddressThrottleMap  m_addressThrottles;

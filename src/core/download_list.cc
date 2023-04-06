@@ -311,6 +311,10 @@ DownloadList::insert(Download* download) {
     std::for_each(control->view_manager()->begin(), control->view_manager()->end(), std::bind(std::mem_fn(&View::insert), std::placeholders::_1, download));
     std::for_each(control->view_manager()->begin(), control->view_manager()->end(), std::bind(std::mem_fn(&View::filter_download), std::placeholders::_1, download));
 
+    if (rpc::call_command_value("d.hashing", rpc::make_target(download)) != Download::variable_hashing_stopped) {
+      hashings_add(download);
+    }
+
     DL_TRIGGER_EVENT(*itr, "event.download.inserted");
 
   } catch (torrent::local_error& e) {
@@ -474,24 +478,6 @@ DownloadList::resume(Download* download, int flags) {
       download->set_resume_flags(flags);
     }
 
-    // Manual or end-of-download rehashing clears the resume data so
-    // we can just start the hashing again without clearing it again.
-    //
-    // It is also assumed the is_hash_checked flag gets cleared when
-    // 'hashing' was set.
-    if (!download->is_hash_checked()) {
-      // If the hash failed flag wasn't cleared then hashing won't be
-      // initiated.
-      if (download->is_hash_failed())
-        return;
-
-      if (rpc::call_command_value("d.hashing", rpc::make_target(download)) == Download::variable_hashing_stopped)
-        rpc::call_command("d.hashing.set", Download::variable_hashing_initial, rpc::make_target(download));
-
-      DL_TRIGGER_EVENT(download, "event.download.hash_queued");
-      return;
-    }
-
     // This will never actually do anything due to the above hash check.
     // open_throw(download);
 
@@ -563,11 +549,12 @@ DownloadList::start(Download* download) {
   }
   rpc::call_command("d.state.set", (int64_t)1, rpc::make_target(download));
 
-  download->set_hash_failed(false);
-
-  const std::size_t max_active = static_cast<std::size_t>(rpc::call_command("scheduler.max_active", torrent::Object()).as_value());
-  if (m_actives.size() < max_active) {
+  if (!hash_queue(download)) {
+    // TODO: move the resume to the main loop so that we are unaware of the scheduler
+    const std::size_t max_active = static_cast<std::size_t>(rpc::call_command("scheduler.max_active", torrent::Object()).as_value());
+    if (m_actives.size() < max_active) {
       resume(download);
+    }
   }
 
   DL_TRIGGER_EVENT(download, "event.download.started");
@@ -618,7 +605,7 @@ DownloadList::pause(Download* download, int flags) {
     if (rpc::call_command_value("d.hashing", rpc::make_target(download)) != Download::variable_hashing_stopped) {
       download->download()->hash_stop();
       rpc::call_command_set_value("d.hashing.set", Download::variable_hashing_stopped, rpc::make_target(download));
-
+      hashings_remove(download);
       DL_TRIGGER_EVENT(download, "event.download.hash_removed");
     }
 
@@ -696,6 +683,7 @@ DownloadList::hash_done(Download* download) {
 
   int64_t hashing = rpc::call_command_value("d.hashing", rpc::make_target(download));
   rpc::call_command_set_value("d.hashing.set", Download::variable_hashing_stopped, rpc::make_target(download));
+  hashings_remove(download);
 
   if (download->is_done() && download->download()->info()->is_meta_download())
     return process_meta_download(download);
@@ -768,6 +756,7 @@ DownloadList::hash_queue(Download* download, int type) {
 
   download->set_hash_failed(false);
   rpc::call_command_set_value("d.hashing.set", type, rpc::make_target(download));
+  hashings_add(download);
 
   if (download->is_open())
     throw torrent::internal_error("DownloadList::hash_clear(...) download still open.");
@@ -899,6 +888,148 @@ DownloadList::process_meta_download(Download* download) {
 
   erase_ptr(download);
   control->core()->try_create_download_from_meta_download(bencode, metafile);
+}
+
+bool
+DownloadList::hash_queue(Download* download) {
+  download->set_hash_failed(false);
+  // Manual or end-of-download rehashing clears the resume data so
+  // we can just start the hashing again without clearing it again.
+  //
+  // It is also assumed the is_hash_checked flag gets cleared when
+  // 'hashing' was set.
+  if (!download->is_hash_checked()) {
+    // If the hash failed flag wasn't cleared then hashing won't be
+    // initiated.
+    if (download->is_hash_failed()) {
+      return false;
+    }
+
+    if (rpc::call_command_value("d.hashing", rpc::make_target(download)) == Download::variable_hashing_stopped) {
+      rpc::call_command("d.hashing.set", Download::variable_hashing_initial, rpc::make_target(download));
+
+      hashings_add(download);
+
+      DL_TRIGGER_EVENT(download, "event.download.hash_queued");
+    }
+    return true;
+  }
+
+  return false;
+}
+
+void
+DownloadList::hashings_add(Download* download) {
+  LT_LOG_THIS(DEBUG, "adding to hashing list.", nullptr);
+
+  if (exists(m_hashings, download)) {
+    throw torrent::internal_error(
+      "DownloadList::hashings_add: download already present [" + hash_string_to_hex_str(download->download()->info()->hash()) + "]");
+  }
+  m_hashings.push_back(download);
+  // DEBUG_VIEW
+  {
+    auto it = control->view_manager()->find("hashing");
+    if (it != control->view_manager()->end()) {
+      View* view = *it;
+      view->filter();
+      const std::size_t views_count = view->size_visible();
+      const std::size_t list_count = m_hashings.size();
+      if (views_count != list_count) {
+        throw torrent::internal_error("DownloadList::hashings_add: count mismtach, started view has [" + std::to_string(views_count) + "] but list has [" + std::to_string(list_count) + "].");
+      }
+    }
+  }
+}
+
+void
+DownloadList::hashings_remove(Download* download) {
+  LT_LOG_THIS(DEBUG, "removing from hashing list.", nullptr);
+  auto it = std::find(m_hashings.begin(), m_hashings.end(), download);
+  if (it == m_hashings.end()) {
+    throw torrent::internal_error(
+      "DownloadList::hashings_remove: download not found [" + hash_string_to_hex_str(download->download()->info()->hash()) + "]");
+  }
+  m_hashings.erase(it); // TODO keep order or remove at end?
+  // DEBUG_VIEW
+  {
+    auto it = control->view_manager()->find("hashing");
+    if (it != control->view_manager()->end()) {
+      View* view = *it;
+      view->filter();
+      const std::size_t views_count = view->size_visible();
+      const std::size_t list_count = m_hashings.size();
+      if (views_count != list_count) {
+        throw torrent::internal_error("DownloadList::hashings_remove: count mismtach, started view has [" + std::to_string(views_count) + "] but list has [" + std::to_string(list_count) + "].");
+      }
+    }
+  }
+}
+
+void
+DownloadList::update_hashings() {
+  bool foundHashing = std::find_if(
+    m_hashings.begin(),
+    m_hashings.end(),
+    std::mem_fn(&Download::is_hash_checking)
+  ) != m_hashings.end();
+
+  // Try quick hashing all those with hashing == initial, set them to
+  // something else when failed.
+  for (Download* download : m_hashings) {
+    if (download->is_hash_checked()) {
+      throw torrent::internal_error("DownloadList::update_hashings is_hash_checked()");
+    }
+
+    if (download->is_hash_checking() || download->is_hash_failed()) {
+      continue;
+    }
+
+    const bool tryQuick =
+      rpc::call_command_value("d.hashing", rpc::make_target(download)) == Download::variable_hashing_initial &&
+      download->download()->file_list()->bitfield()->empty();
+
+    if (!tryQuick && foundHashing) {
+      continue;
+    }
+
+    try {
+      open_throw(download);
+
+      // Since the bitfield is allocated on loading of resume load or
+      // hash start, and unallocated on close, we know that if it it
+      // not empty then we have already loaded any existing resume
+      // data.
+      if (download->download()->file_list()->bitfield()->empty()) {
+        torrent::resume_load_progress(*download->download(), download->download()->bencode()->get_key("libtorrent_resume"));
+      }
+
+      if (tryQuick) {
+        if (download->download()->hash_check(true))
+          continue;
+
+        download->download()->hash_stop();
+
+        if (foundHashing) {
+          rpc::call_command_set_value("d.hashing.set", Download::variable_hashing_rehash, rpc::make_target(download));
+          continue;
+        }
+      }
+
+      download->download()->hash_check(false);
+      foundHashing = true;
+
+    } catch (torrent::local_error& e) {
+      if (tryQuick) {
+        // Make sure we don't repeat the quick hashing.
+        rpc::call_command_set_value("d.hashing.set", Download::variable_hashing_rehash, rpc::make_target(download));
+
+      } else {
+        download->set_hash_failed(true);
+        lt_log_print(torrent::LOG_TORRENT_ERROR, "Hashing failed: %s", e.what());
+      }
+    }
+  }
 }
 
 }

@@ -114,6 +114,8 @@ public:
 
   void                check_hash(Download* d);
 
+  void                update_hashings();
+
   const std::vector<Download*>& actives();
   const std::vector<Download*>& starteds();
 
@@ -174,8 +176,12 @@ private:
   void                actives_remove(Download* d);
   bool                starteds_add(Download* d);
   bool                starteds_remove(Download* d);
+  bool                hash_queue(Download* d);
+  void                hashings_add(Download*);
+  void                hashings_remove(Download*);
 
   std::vector<Download*> m_actives;
+  std::vector<Download*> m_hashings;
   std::vector<Download*> m_starteds;
 };
 

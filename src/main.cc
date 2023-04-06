@@ -179,6 +179,10 @@ client_perform() {
 
   cachedTime = rak::timer::current();
   rak::priority_queue_perform(&taskScheduler, cachedTime);
+
+  if (!control->is_shutdown_received()) {
+    control->core()->update(cachedTime.usec());
+  }
 }
 
 int

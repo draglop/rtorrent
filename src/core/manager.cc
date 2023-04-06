@@ -86,7 +86,6 @@ Manager::push_log(const char* msg) {
 }
 
 Manager::Manager() :
-  m_hashingView(NULL),
   m_log_important(torrent::log_open_log_buffer("important")),
   m_log_complete(torrent::log_open_log_buffer("complete"))
 {
@@ -110,15 +109,6 @@ Manager::~Manager() {
   delete m_downloadStore;
   delete m_httpQueue;
   delete m_fileStatusCache;
-}
-
-void
-Manager::set_hashing_view(View* v) {
-  if (v == NULL || m_hashingView != NULL)
-    throw torrent::internal_error("Manager::set_hashing_view(...) received NULL or is already set.");
-
-  m_hashingView = v;
-  m_hashingView->signal_changed().push_back(std::bind(&Manager::receive_hashing_changed, this));
 }
 
 torrent::ThrottlePair
@@ -509,66 +499,9 @@ Manager::try_create_download_expand(const std::string& uri, int flags, command_l
     try_create_download(uri, flags, commands);
 }
 
-// DownloadList's hashing related functions don't actually start the
-// hashing, it only reacts to events. This functions checks the
-// hashing view and starts hashing if nessesary.
 void
-Manager::receive_hashing_changed() {
-  bool foundHashing = std::find_if(m_hashingView->begin_visible(), m_hashingView->end_visible(),
-                                   std::mem_fn(&Download::is_hash_checking)) != m_hashingView->end_visible();
-  
-  // Try quick hashing all those with hashing == initial, set them to
-  // something else when failed.
-  for (View::iterator itr = m_hashingView->begin_visible(), last = m_hashingView->end_visible(); itr != last; ++itr) {
-    if ((*itr)->is_hash_checked())
-      throw torrent::internal_error("core::Manager::receive_hashing_changed() (*itr)->is_hash_checked().");
-  
-    if ((*itr)->is_hash_checking() || (*itr)->is_hash_failed())
-      continue;
-
-    bool tryQuick =
-      rpc::call_command_value("d.hashing", rpc::make_target(*itr)) == Download::variable_hashing_initial &&
-      (*itr)->download()->file_list()->bitfield()->empty();
-
-    if (!tryQuick && foundHashing)
-      continue;
-
-    try {
-      m_downloadList->open_throw(*itr);
-
-      // Since the bitfield is allocated on loading of resume load or
-      // hash start, and unallocated on close, we know that if it it
-      // not empty then we have already loaded any existing resume
-      // data.
-      if ((*itr)->download()->file_list()->bitfield()->empty())
-        torrent::resume_load_progress(*(*itr)->download(), (*itr)->download()->bencode()->get_key("libtorrent_resume"));
-
-      if (tryQuick) {
-        if ((*itr)->download()->hash_check(true))
-          continue;
-
-        (*itr)->download()->hash_stop();
-
-        if (foundHashing) {
-          rpc::call_command_set_value("d.hashing.set", Download::variable_hashing_rehash, rpc::make_target(*itr));
-          continue;
-        }
-      }
-
-      (*itr)->download()->hash_check(false);
-      foundHashing = true;
-
-    } catch (torrent::local_error& e) {
-      if (tryQuick) {
-        // Make sure we don't repeat the quick hashing.
-        rpc::call_command_set_value("d.hashing.set", Download::variable_hashing_rehash, rpc::make_target(*itr));
-
-      } else {
-        (*itr)->set_hash_failed(true);
-        lt_log_print(torrent::LOG_TORRENT_ERROR, "Hashing failed: %s", e.what());
-      }
-    }
-  }
+Manager::update(int64_t time) {
+  m_downloadList->update_hashings();
 }
 
 }
