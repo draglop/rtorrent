@@ -113,8 +113,11 @@ public:
 
   void                next_focus();
   void                prev_focus();
+  void                reset_focus()                           { set_focus(end_filtered()); }
 
   void                sort();
+
+  void                updates_enable(bool enable);
 
   void                set_sort_new(const torrent::Object& s)      { m_sortNew = s; }
   void                set_sort_current(const torrent::Object& s)  { m_sortCurrent = s; }
@@ -185,6 +188,8 @@ private:
 
   signal_void         m_signal_changed;
   rak::priority_item  m_delayChanged;
+
+  bool                m_updatesEnabled;
 };
 
 }

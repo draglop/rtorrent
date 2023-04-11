@@ -72,6 +72,8 @@ public:
 
   void                clear();
 
+  void                updates_enable(bool enable);
+
   iterator            insert(const std::string& name);
   void                insert_throw(const std::string& name) { insert(name); }
 

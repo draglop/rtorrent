@@ -129,4 +129,18 @@ ViewManager::set_filter_on(const std::string& name, const filter_args& args) {
     (*viewItr)->set_filter_on_event(*itr);
 }
 
+void
+ViewManager::updates_enable(bool enable) {
+  if (enable) {
+    for(View* view : *this) {
+      view->reset_focus();
+      view->updates_enable(true);
+    }
+  } else {
+    for(View* view : *this) {
+      view->updates_enable(false);
+    }
+  }
+}
+
 }

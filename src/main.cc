@@ -62,6 +62,7 @@
 #include "core/download_factory.h"
 #include "core/download_store.h"
 #include "core/manager.h"
+#include "core/view_manager.h"
 #include "display/canvas.h"
 #include "display/window.h"
 #include "display/manager.h"
@@ -475,6 +476,9 @@ main(int argc, char** argv) {
     control->initialize();
     control->ui()->load_input_history();
 
+    // disable views events, sorting, filtering during load
+    control->view_manager()->updates_enable(false);
+
     // Load session torrents and perform scheduled tasks to ensure
     // session torrents are loaded before arg torrents.
     control->dht_manager()->load_dht_cache();
@@ -482,6 +486,9 @@ main(int argc, char** argv) {
     rak::priority_queue_perform(&taskScheduler, cachedTime);
 
     load_arg_torrents(argv + firstArg, argv + argc);
+
+    // restore views events, sorting, filtering after load
+    control->view_manager()->updates_enable(true);
 
     // Make sure we update the display before any scheduled tasks can
     // run, so that loading of torrents doesn't look like it hangs on

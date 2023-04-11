@@ -312,6 +312,10 @@ View::filter_by(const torrent::Object& condition, View::base_type& result) {
 
 void
 View::filter_download(core::Download* download) {
+  if (!m_updatesEnabled) {
+    return;
+  }
+
   iterator itr = std::find(base_type::begin(), base_type::end(), download);
 
   if (itr == base_type::end())
@@ -375,6 +379,18 @@ View::erase_internal(iterator itr) {
   m_focus -= (m_focus > position(itr));
 
   base_type::erase(itr);
+}
+
+void
+View::updates_enable(bool enable) {
+  if (enable != m_updatesEnabled) {
+    m_updatesEnabled = enable;
+
+    if (m_updatesEnabled) {
+      filter();
+      sort();
+    }
+  }
 }
 
 }
