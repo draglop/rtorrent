@@ -87,6 +87,7 @@ public:
   // test in the next milestone.
   bool                is_hash_checked() const                  { return is_open() && m_download.is_hash_checked(); }
   bool                is_hash_checking() const                 { return m_download.is_hash_checking(); }
+  int                 hash_error_number() const                { return m_download.hash_error_number(); }
 
   bool                is_hash_failed() const                   { return m_hashFailed; }
   void                set_hash_failed(bool v)                  { m_hashFailed = v; }

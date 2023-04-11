@@ -986,7 +986,7 @@ DownloadList::update_hashings() {
       throw torrent::internal_error("DownloadList::update_hashings is_hash_checked()");
     }
 
-    if (download->is_hash_checking() || download->is_hash_failed()) {
+    if (download->is_hash_checking() || download->is_hash_failed() || (download->hash_error_number() != 0)) {
       continue;
     }
 
