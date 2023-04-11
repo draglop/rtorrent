@@ -974,9 +974,14 @@ DownloadList::update_hashings() {
     std::mem_fn(&Download::is_hash_checking)
   ) != m_hashings.end();
 
+  std::size_t queued_count = 0;
   // Try quick hashing all those with hashing == initial, set them to
   // something else when failed.
   for (Download* download : m_hashings) {
+    if (queued_count > 127) {
+      break;
+    }
+
     if (download->is_hash_checked()) {
       throw torrent::internal_error("DownloadList::update_hashings is_hash_checked()");
     }
@@ -1005,8 +1010,10 @@ DownloadList::update_hashings() {
       }
 
       if (tryQuick) {
-        if (download->download()->hash_check(true))
+        if (download->download()->hash_check(true)) {
+          ++queued_count;
           continue;
+        }
 
         download->download()->hash_stop();
 
@@ -1016,6 +1023,7 @@ DownloadList::update_hashings() {
         }
       }
 
+      ++queued_count;
       download->download()->hash_check(false);
       foundHashing = true;
 
