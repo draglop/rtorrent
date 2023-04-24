@@ -163,6 +163,7 @@ private:
   void operator = (const DownloadList&);
 
   void                hash_done(Download* d);
+  void                hash_error(Download* download, int error_number);
   void                hash_queue(Download* d, int type);
 
   inline void         check_contains(Download* d);

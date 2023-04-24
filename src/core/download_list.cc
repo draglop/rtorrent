@@ -300,6 +300,7 @@ DownloadList::insert(Download* download) {
 
   try {
     (*itr)->data()->slot_initial_hash()        = std::bind(&DownloadList::hash_done, this, download);
+    (*itr)->data()->slot_error_hash()          = std::bind(&DownloadList::hash_error, this, download, std::placeholders::_1);
     (*itr)->data()->slot_download_done()       = std::bind(&DownloadList::received_finished, this, download);
 
     // This needs to be separated into two different calls to ensure
@@ -724,6 +725,11 @@ DownloadList::hash_done(Download* download) {
   }
 
   DL_TRIGGER_EVENT(download, "event.download.hash_done");
+}
+
+void
+DownloadList::hash_error(Download* download, int error_number) {
+  download->set_message(strerror(error_number));
 }
 
 void
