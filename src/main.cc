@@ -93,8 +93,10 @@ void initialize_commands();
 void do_nothing() {}
 void do_nothing_str(const std::string&) {}
 
+// TODO HACK REFACTOR: parsing config_file as an argument is a hack
+// OptionParser should handle that (keep informations and be queried)
 int
-parse_options(int argc, char** argv) {
+parse_options(int argc, char** argv, std::string& config_file) {
   try {
     OptionParser optionParser;
 
@@ -105,6 +107,7 @@ parse_options(int argc, char** argv) {
     optionParser.insert_flag('I', std::bind(&do_nothing_str, std::placeholders::_1));
     optionParser.insert_flag('K', std::bind(&do_nothing_str, std::placeholders::_1));
 
+    optionParser.insert_option('c', [&config_file] (const std::string& arg) { config_file = arg; });
     optionParser.insert_option('b', std::bind(&rpc::call_command_set_string, "network.bind_address.set", std::placeholders::_1));
     optionParser.insert_option('d', std::bind(&rpc::call_command_set_string, "directory.default.set", std::placeholders::_1));
     optionParser.insert_option('i', std::bind(&rpc::call_command_set_string, "ip", std::placeholders::_1));
@@ -454,10 +457,13 @@ main(int argc, char** argv) {
     }
 #endif
 
-    int firstArg = parse_options(argc, argv);
+    std::string config_file;
+    int firstArg = parse_options(argc, argv, config_file);
 
     if (OptionParser::has_flag('n', argc, argv)) {
       lt_log_print(torrent::LOG_WARN, "Ignoring rtorrent.rc.");
+    } else if (!config_file.empty()) {
+        rpc::parse_command_single(rpc::make_target(), "try_import = " + config_file);
     } else {
       char* config_dir = std::getenv("XDG_CONFIG_HOME");
       char* home_dir = std::getenv("HOME");
@@ -652,6 +658,7 @@ print_help() {
   std::cout << "  -D                Enable deprecated commands" << std::endl;
   std::cout << "  -h                Display this very helpful text" << std::endl;
   std::cout << "  -n                Don't try to load rtorrent.rc on startup" << std::endl;
+  std::cout << "  -c <file>         load resource file (rtorrent.rc) from custom location" << std::endl;
   std::cout << "  -b <a.b.c.d>      Bind the listening socket to this IP" << std::endl;
   std::cout << "  -i <a.b.c.d>      Change the IP that is sent to the tracker" << std::endl;
   std::cout << "  -p <int>-<int>    Set port range for incoming connections" << std::endl;
