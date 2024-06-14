@@ -86,31 +86,40 @@ WindowTrackerList::redraw() {
     if (tracker->group() == group)
       m_canvas->print(0, pos, "%2i:", group++);
 
-    m_canvas->print(4, pos++, "%s",
-                    tracker->url().c_str());
+    const char *status;
+    {
+      if (tracker->is_usable()) {
+        status = " on";
+      } else if (tracker->is_enabled()) {
+        status = "err";
+      } else {
+        status = "off";
+      }
+    }
+    const char *busy;
+    {
+        if (tracker->is_busy_not_scrape()) {
+            busy = "req";
+        } else if (tracker->is_busy()) {
+            busy = "scr";
+        } else {
+            busy = "   ";
+        }
+    }
+
+    m_canvas->print(4, pos++, "[%s] [%s] %s", status, busy, tracker->url().c_str());
 
     if (pos < m_canvas->height()) {
-      const char* state;
-
-      if (tracker->is_busy_not_scrape())
-        state = "req ";
-      else if (tracker->is_busy())
-        state = "scr ";
-      else
-        state = "    ";
-
-      m_canvas->print(0, pos++, "%s Id: %s Counters: %uf / %us (%u) %s S/L/D: %u/%u/%u (%u/%u)",
-                      state,
-                      rak::copy_escape_html(tracker->tracker_id()).c_str(),
-                      tracker->failed_counter(),
-                      tracker->success_counter(),
-                      tracker->scrape_counter(),
-                      tracker->is_usable() ? " on" : tracker->is_enabled() ? "err" : "off",
-                      tracker->scrape_complete(),
-                      tracker->scrape_incomplete(),
-                      tracker->scrape_downloaded(),
-                      tracker->latest_new_peers(),
-                      tracker->latest_sum_peers());
+      m_canvas->print(16, pos++, "[seeders: %u, leechers: %u] [peers: %u (new: %u)] [scrapes: %u] [consecutive contacts: %u good, %u failed] [downloaded: %u] [id: %s]",
+        tracker->scrape_complete(),
+        tracker->scrape_incomplete(),
+        tracker->latest_sum_peers(),
+        tracker->latest_new_peers(),
+        tracker->scrape_counter(),
+        tracker->success_counter(),
+        tracker->failed_counter(),
+        tracker->scrape_downloaded(),
+        rak::copy_escape_html(tracker->tracker_id()).c_str());
     }
 
     if (range.first == *m_focus) {
