@@ -908,6 +908,8 @@ initialize_command_download() {
   CMD2_DL         ("d.group.name", std::bind(&cg_d_group, std::placeholders::_1));
   CMD2_DL_V       ("d.group.set",  std::bind(&cg_d_group_set, std::placeholders::_1, std::placeholders::_2));
 
+  CMD2_DL_VALUE_V ("d.trackers.enable.set", std::bind(&core::Download::set_trackers_enabled_status, std::placeholders::_1, std::placeholders::_2));
+
   CMD2_DL_LIST    ("f.multicall", std::bind(&f_multicall, std::placeholders::_1, std::placeholders::_2));
   CMD2_DL_LIST    ("p.multicall", std::bind(&p_multicall, std::placeholders::_1, std::placeholders::_2));
   CMD2_DL_LIST    ("t.multicall", std::bind(&t_multicall, std::placeholders::_1, std::placeholders::_2));

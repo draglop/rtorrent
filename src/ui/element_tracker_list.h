@@ -64,7 +64,7 @@ private:
   void                receive_next();
   void                receive_prev();
 
-  void                receive_disable();
+  void                toggle_enabled();
 
   void                receive_cycle_group();
 

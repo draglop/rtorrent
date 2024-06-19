@@ -49,6 +49,7 @@
 #include <torrent/object_stream.h>
 #include <torrent/exceptions.h>
 #include <torrent/rate.h>
+#include <torrent/tracker_controller.h>
 #include <torrent/data/file_utils.h>
 
 #include "rpc/parse_commands.h"
@@ -272,9 +273,6 @@ DownloadFactory::receive_success() {
     if (rpc::call_command_value("throttle.max_peers.seed") >= 0)
       rpc::call_command("d.peers_max.set", rpc::call_command("throttle.max_peers.seed"), rpc::make_target(download));
   }
-
-  if (!rpc::call_command_value("trackers.use_udp"))
-    download->enable_udp_trackers(false);
 
   // Check first if we already have these values set in the session
   // torrent, so that it is safe to change the values.

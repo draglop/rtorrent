@@ -57,7 +57,7 @@ ElementTrackerList::ElementTrackerList(core::Download* d) :
   m_bindings[KEY_LEFT] = m_bindings['B' - '@'] = std::bind(&slot_type::operator(), &m_slot_exit);
 
   m_bindings[' ']      = std::bind(&ElementTrackerList::receive_cycle_group, this);
-  m_bindings['*']      = std::bind(&ElementTrackerList::receive_disable, this);
+  m_bindings['*']      = std::bind(&ElementTrackerList::toggle_enabled, this);
 
   m_bindings[KEY_DOWN] = m_bindings['N' - '@'] = std::bind(&ElementTrackerList::receive_next, this);
   m_bindings[KEY_UP]   = m_bindings['P' - '@'] = std::bind(&ElementTrackerList::receive_prev, this);
@@ -99,16 +99,25 @@ ElementTrackerList::window() {
 }
 
 void
-ElementTrackerList::receive_disable() {
+ElementTrackerList::toggle_enabled() {
   if (m_window == NULL)
     throw torrent::internal_error("ui::ElementTrackerList::receive_disable(...) called on a disabled object");
 
   torrent::Tracker* t = m_download->download()->tracker_list()->at(m_focus);
 
-  if (t->is_enabled())
-    t->disable();
-  else
-    t->enable();
+  torrent::Tracker::enabled_status_t new_status;
+  switch (t->get_enabled_status()) {
+    case torrent::Tracker::enabled_status_t::undefined:
+      new_status = torrent::Tracker::enabled_status_t::off;
+      break;
+    case torrent::Tracker::enabled_status_t::on:
+      new_status = torrent::Tracker::enabled_status_t::undefined;
+      break;
+    case torrent::Tracker::enabled_status_t::off:
+      new_status = torrent::Tracker::enabled_status_t::on;
+      break;
+  }
+  t->set_enabled_status(new_status);
 
   m_window->mark_dirty();
 }

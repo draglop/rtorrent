@@ -39,8 +39,10 @@
 #include <cstdio>
 #include <rak/address_info.h>
 #include <rak/error_number.h>
+#include <torrent/connection_manager.h>
 #include <torrent/dht_manager.h>
 #include <torrent/tracker.h>
+#include <torrent/tracker_controller.h>
 #include <torrent/utils/log.h>
 
 #include "core/download.h"
@@ -51,13 +53,23 @@
 #include "command_helpers.h"
 #include "core/dht_manager.h"
 
-void
-tracker_set_enabled(torrent::Tracker* tracker, bool state) {
-  if (state)
-    tracker->enable();
-  else
-    tracker->disable();
+static void
+tracker_enabled_status_set(torrent::Tracker* tracker, int64_t status) {
+  tracker->set_enabled_status(torrent::Tracker::enabled_status_from_int64(status));
 }
+
+static int64_t
+tracker_enabled_status_get(const torrent::Tracker* tracker) {
+  return torrent::Tracker::enabled_status_to_int64(tracker->get_enabled_status());
+}
+
+static torrent::Object
+protocol_enable(torrent::ConnectionManager::protocol_t protocol, bool enable) {
+  torrent::connection_manager()->protocol_enabled_set(protocol, enable);
+
+  return torrent::Object();
+}
+
 
 struct call_add_node_t {
   call_add_node_t(int port) : m_port(port) { }
@@ -96,32 +108,16 @@ apply_dht_add_node(const std::string& arg) {
   return torrent::Object();
 }
 
-torrent::Object
-apply_enable_trackers(int64_t arg) {
-  for (core::Manager::DListItr itr = control->core()->download_list()->begin(), last = control->core()->download_list()->end(); itr != last; ++itr) {
-    std::for_each((*itr)->tracker_list()->begin(), (*itr)->tracker_list()->end(),
-                  arg ? std::mem_fn(&torrent::Tracker::enable) : std::mem_fn(&torrent::Tracker::disable));
-
-    if (arg && !rpc::call_command_value("trackers.use_udp"))
-      (*itr)->enable_udp_trackers(false);
-  }    
-
-  return torrent::Object();
-}
-
 void
 initialize_command_tracker() {
   CMD2_TRACKER        ("t.is_open",           std::bind(&torrent::Tracker::is_busy, std::placeholders::_1));
-  CMD2_TRACKER        ("t.is_enabled",        std::bind(&torrent::Tracker::is_enabled, std::placeholders::_1));
   CMD2_TRACKER        ("t.is_usable",         std::bind(&torrent::Tracker::is_usable, std::placeholders::_1));
   CMD2_TRACKER        ("t.is_busy",           std::bind(&torrent::Tracker::is_busy, std::placeholders::_1));
   CMD2_TRACKER        ("t.is_extra_tracker",  std::bind(&torrent::Tracker::is_extra_tracker, std::placeholders::_1));
   CMD2_TRACKER        ("t.can_scrape",        std::bind(&torrent::Tracker::can_scrape, std::placeholders::_1));
 
-  CMD2_TRACKER_V      ("t.enable",            std::bind(&torrent::Tracker::enable, std::placeholders::_1));
-  CMD2_TRACKER_V      ("t.disable",           std::bind(&torrent::Tracker::disable, std::placeholders::_1));
-
-  CMD2_TRACKER_VALUE_V("t.is_enabled.set",    std::bind(&tracker_set_enabled, std::placeholders::_1, std::placeholders::_2));
+  CMD2_TRACKER_VALUE_V("t.enabled_status.get",  std::bind(&tracker_enabled_status_get, std::placeholders::_1));
+  CMD2_TRACKER_VALUE_V("t.enabled_status.set",  std::bind(&tracker_enabled_status_set, std::placeholders::_1, std::placeholders::_2));
 
   CMD2_TRACKER        ("t.url",               std::bind(&torrent::Tracker::url, std::placeholders::_1));
   CMD2_TRACKER        ("t.group",             std::bind(&torrent::Tracker::group, std::placeholders::_1));
@@ -155,10 +151,10 @@ initialize_command_tracker() {
   CMD2_TRACKER        ("t.scrape_incomplete", std::bind(&torrent::Tracker::scrape_incomplete, std::placeholders::_1));
   CMD2_TRACKER        ("t.scrape_downloaded", std::bind(&torrent::Tracker::scrape_downloaded, std::placeholders::_1));
 
-  CMD2_ANY_VALUE      ("trackers.enable",     std::bind(&apply_enable_trackers, int64_t(1)));
-  CMD2_ANY_VALUE      ("trackers.disable",    std::bind(&apply_enable_trackers, int64_t(0)));
   CMD2_VAR_VALUE      ("trackers.numwant",    -1);
-  CMD2_VAR_BOOL       ("trackers.use_udp",    true);
+
+  CMD2_ANY_VALUE_V    ("trackers.http.enable.set", std::bind(&protocol_enable, torrent::ConnectionManager::protocol_t::http, std::placeholders::_2));
+  CMD2_ANY_VALUE_V    ("trackers.udp.enable.set",  std::bind(&protocol_enable, torrent::ConnectionManager::protocol_t::udp, std::placeholders::_2));
 
   CMD2_ANY_STRING_V   ("dht.mode.set",          std::bind(&core::DhtManager::set_mode, control->dht_manager(), std::placeholders::_2));
   CMD2_VAR_VALUE      ("dht.port",              int64_t(6881));

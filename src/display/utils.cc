@@ -44,6 +44,7 @@
 #include <rak/timer.h>
 #include <torrent/exceptions.h>
 #include <torrent/connection_manager.h>
+#include <torrent/dht_manager.h>
 #include <torrent/rate.h>
 #include <torrent/throttle.h>
 #include <torrent/torrent.h>
@@ -443,6 +444,13 @@ print_status_info(char* first, char* last) {
   if (!torrent::connection_manager()->network_active_get()) {
     first = print_buffer(first, last, " [networking: disabled]");
   }
+
+  first = print_buffer(first, last, " [http: %s]",
+    torrent::connection_manager()->protocol_enabled_get(torrent::ConnectionManager::protocol_t::http) ? "on" : "off");
+  first = print_buffer(first, last, " [udp: %s]",
+    torrent::connection_manager()->protocol_enabled_get(torrent::ConnectionManager::protocol_t::udp) ? "on" : "off");
+  first = print_buffer(first, last, " [dht: %s]",
+    torrent::connection_manager()->protocol_enabled_get(torrent::ConnectionManager::protocol_t::dht) && torrent::dht_manager()->is_valid() ? "on" : "off");
 
   return first;
 }

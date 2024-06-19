@@ -73,17 +73,6 @@ Download::~Download() {
   m_download = download_type();
 }
 
-void
-Download::enable_udp_trackers(bool state) {
-  for (torrent::TrackerList::iterator itr = m_download.tracker_list()->begin(), last = m_download.tracker_list()->end(); itr != last; ++itr)
-    if ((*itr)->type() == torrent::Tracker::TRACKER_UDP) {
-      if (state)
-        (*itr)->enable();
-      else
-        (*itr)->disable();
-    }
-}
-
 uint32_t
 Download::priority() {
   return bencode()->get_key("rtorrent").get_key_value("priority");
@@ -180,6 +169,14 @@ Download::set_root_directory(const std::string& path) {
   file_list->set_root_dir(rak::path_expand(path));
 
   bencode()->get_key("rtorrent").insert_key("directory", path);
+}
+
+void
+Download::set_trackers_enabled_status(int64_t status) {
+  torrent::Tracker::enabled_status_t enabled_status = torrent::Tracker::enabled_status_from_int64(status);
+  for (torrent::Tracker *tracker : *download()->tracker_list()) {
+    tracker->set_enabled_status(enabled_status);
+  }
 }
 
 }

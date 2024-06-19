@@ -88,12 +88,21 @@ WindowTrackerList::redraw() {
 
     const char *status;
     {
-      if (tracker->is_usable()) {
-        status = " on";
-      } else if (tracker->is_enabled()) {
-        status = "err";
-      } else {
-        status = "off";
+      switch (tracker->get_enabled_status())
+      {
+      case torrent::Tracker::enabled_status_t::on:
+        status = " u-on";
+        break;
+      case torrent::Tracker::enabled_status_t::off:
+        status = "u-off";
+        break;
+      case torrent::Tracker::enabled_status_t::undefined:
+        const bool t_status = torrent::Tracker::is_protocol_enabled(tracker->type());
+        if (t_status) {
+          status = "   on";
+        } else {
+          status = "t-off";
+        }
       }
     }
     const char *busy;
@@ -110,7 +119,7 @@ WindowTrackerList::redraw() {
     m_canvas->print(4, pos++, "[%s] [%s] %s", status, busy, tracker->url().c_str());
 
     if (pos < m_canvas->height()) {
-      m_canvas->print(16, pos++, "[seeders: %u, leechers: %u] [peers: %u (new: %u)] [scrapes: %u] [consecutive contacts: %u good, %u failed] [downloaded: %u] [id: %s]",
+      m_canvas->print(18, pos++, "[seeders: %u, leechers: %u] [peers: %u (new: %u)] [scrapes: %u] [consecutive contacts: %u good, %u failed] [downloaded: %u] [id: %s]",
         tracker->scrape_complete(),
         tracker->scrape_incomplete(),
         tracker->latest_sum_peers(),

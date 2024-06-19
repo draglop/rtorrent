@@ -114,8 +114,6 @@ public:
   const std::string&  message() const                          { return m_message; }
   void                set_message(const std::string& msg)      { m_message = msg; }
 
-  void                enable_udp_trackers(bool state);
-
   uint32_t            priority();
   void                set_priority(uint32_t p);
 
@@ -129,6 +127,8 @@ public:
   bool                operator == (const std::string& str) const;
 
   float               distributed_copies() const;
+
+  void                set_trackers_enabled_status(int64_t status);
 
   // HACK: Choke group setting.
   unsigned int        group() const { return m_group; }
